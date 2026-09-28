@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+try:
+    from ._native_renderer import (
+        render_ascii as _native_render_ascii,
+        render_half_block as _native_render_half_block,
+    )
+except ImportError:
+    _native_render_ascii = None
+    _native_render_half_block = None
+
 ASCII_RAMP = "@%#*+=-:. "
 RENDERER_MODES = ("HALF_BLOCK", "ASCII", "ANSI_COLOR")
 
@@ -43,6 +52,8 @@ def luminance(red: int, green: int, blue: int) -> int:
 
 def render_ascii(frame: bytes, width: int, height: int) -> str:
     _check_frame(frame, width, height)
+    if _native_render_ascii is not None:
+        return _native_render_ascii(frame, width, height)
     ramp_max = len(ASCII_RAMP) - 1
     lines = []
     for y in range(height):
@@ -63,6 +74,14 @@ def render_half_block(
     color: bool = False,
 ) -> str:
     _check_frame(frame, width, height)
+    if _native_render_half_block is not None:
+        return _native_render_half_block(frame, width, height, color)
+    return _render_half_block_python(frame, width, height, color=color)
+
+
+def _render_half_block_python(
+    frame: bytes, width: int, height: int, *, color: bool = False
+) -> str:
     lines = []
     for y in range(0, height, 2):
         line = []

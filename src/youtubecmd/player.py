@@ -18,9 +18,10 @@ from youtubecmd.streams import StreamError, StreamInfo, extract_streams, validat
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = PROJECT_ROOT / "config.json"
 MAX_SOURCE_HEIGHT = 1080
-MAX_RENDER_FPS = 60.0
+MAX_RENDER_FPS = 30.0
 SEEK_SECONDS = 5.0
 RESIZE_DEBOUNCE_SECONDS = 0.15
+STATUS_UPDATE_INTERVAL = 0.25
 
 
 def _terminal_size() -> tuple[int, int]:
@@ -242,6 +243,7 @@ def play(stream: StreamInfo, config: Config) -> None:
             launch(position)
             frame_interval = 1.0 / min(MAX_RENDER_FPS, stream.fps)
             next_frame_at = time.monotonic()
+            next_status_at = next_frame_at
             running = True
             while running:
                 key = controls.poll()
@@ -378,7 +380,9 @@ def play(stream: StreamInfo, config: Config) -> None:
                     rendered = render_frame(frame, *dimensions, config.renderer_mode)
                 sys.stdout.write("\x1b[H" + rendered.replace("\n", "\x1b[K\r\n"))
                 sys.stdout.flush()
-                _write_status(stream, config, current_position, paused, *dimensions)
+                if now >= next_status_at:
+                    _write_status(stream, config, current_position, paused, *dimensions)
+                    next_status_at = now + STATUS_UPDATE_INTERVAL
                 next_frame_at += frame_interval
     finally:
         stop_processes()

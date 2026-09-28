@@ -240,6 +240,8 @@ Then playback should begin.
 | `M` | Cycle renderer mode |
 
 The display refreshes automatically after the terminal is resized.
+The launcher builds an optional native C renderer for faster frame conversion;
+without a C compiler, playback uses the compatible Python renderer instead.
 
 ---
 

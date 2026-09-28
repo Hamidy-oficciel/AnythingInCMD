@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from youtubecmd.renderer import (
     ASCII_RAMP,
@@ -52,6 +53,22 @@ class RendererTests(unittest.TestCase):
 
         self.assertIn("38;2;255;0;0m", result)
         self.assertIn("48;2;0;0;255m", result)
+
+    def test_native_and_python_renderers_match(self):
+        frame = bytes((255, 0, 0, 5, 100, 200, 0, 0, 0))
+        for color in (False, True):
+            with patch("youtubecmd.renderer._native_render_half_block", None):
+                expected = render_half_block(frame, 1, 3, color=color)
+            actual = render_half_block(frame, 1, 3, color=color)
+
+            self.assertEqual(actual, expected)
+
+    def test_native_and_python_ascii_renderers_match(self):
+        frame = bytes((255, 0, 0, 5, 100, 200, 0, 0, 0))
+        with patch("youtubecmd.renderer._native_render_ascii", None):
+            expected = render_ascii(frame, 1, 3)
+
+        self.assertEqual(render_ascii(frame, 1, 3), expected)
 
     def test_odd_half_block_height_fills_bottom_with_black(self):
         result = render_half_block(bytes((255, 255, 255)), 1, 1)
