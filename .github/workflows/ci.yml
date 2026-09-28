@@ -5,6 +5,17 @@ on:
   pull_request:
 
 jobs:
+  native-player:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: python native/build.py
+      - run: python -m pip install -e ".[test]"
+      - run: python -m pytest
+
   unit-tests:
     runs-on: windows-latest
     strategy:
@@ -15,5 +26,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - run: python native/build.py
+      - run: .\bin\renderer.exe --info
       - run: python -m pip install -e ".[test]"
       - run: python -m pytest

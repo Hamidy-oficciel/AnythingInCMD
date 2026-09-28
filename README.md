@@ -3,11 +3,10 @@
 YouTubeCMD is a Windows command-line video player that lets you watch YouTube videos directly inside a CMD-compatible terminal.
 
 It uses:
-- `yt-dlp` for YouTube stream extraction
-- FFmpeg for video/audio decoding
-- ANSI escape sequences
-- Unicode half-block characters
-- ASCII fallback rendering
+- Python and `yt-dlp` to extract stream URLs and metadata into a temporary JSON file
+- `renderer.exe`, a C++17 player and terminal renderer
+- FFmpeg for video decoding and FFplay for audio
+- ANSI, half-block grayscale, and ASCII terminal rendering
 
 The visual output stays inside the terminal. Audio plays through the normal Windows audio device.
 
@@ -105,8 +104,12 @@ During installation, make sure to enable:
 Add Python to PATH
 ```
 
+### C++ compiler
+The launcher builds the native player once. Install either MSVC Build Tools
+(recommended) or MinGW-w64 with `g++` available in PATH.
+
 ### FFmpeg
-FFmpeg must be installed and available in your system PATH.
+Install an FFmpeg build that includes both `ffmpeg` and `ffplay` and add it to PATH.
 
 Check with:
 
@@ -131,10 +134,23 @@ Do not download random FFmpeg builds from unsafe websites.
 ```text
 YouTubeCMD/
 	YouTubeCMD.bat
+	native/
+		build.py
+		build_msvc.bat
+		build_mingw.bat
+		src/
+			main.cpp
+			console.cpp
+			renderer.cpp
+			stream.cpp
+			media.cpp
+			player.cpp
+	bin/renderer.exe (built on first launch)
 	requirements.txt
 	requirements-dev.txt
 	config.json
 	src/youtubecmd/
+		extract.py
 		player.py
 		renderer.py
 		streams.py
@@ -146,6 +162,8 @@ YouTubeCMD/
 		check_ffmpeg.bat
 		local_render_test.py
 	tests/
+		test_extract.py
+		test_native.py
 		test_renderer.py
 		test_url_validation.py
 		test_config.py
@@ -235,19 +253,19 @@ Then playback should begin.
 | `Down Arrow` | Volume down |
 | `R` | Restart video |
 | `F` | Try fullscreen / maximize console |
-| `+` | Increase pixel density up to the terminal's full size |
-| `-` | Reduce pixel density |
-| `M` | Cycle renderer mode |
+| `+` | Raise quality: low, normal, high |
+| `-` | Lower quality: high, normal, low |
 
 The display refreshes automatically after the terminal is resized.
-The launcher builds an optional native C renderer for faster frame conversion;
-without a C compiler, playback uses the compatible Python renderer instead.
+The C++ player drops late frames and lowers quality when it repeatedly misses the
+30 FPS frame budget. Use `--mode ascii` for grayscale ASCII or `--mode color` for
+true-color half-block output when launching `renderer.exe` directly.
 
 ---
 
 ## Renderer Modes
 
-### HALF_BLOCK — default
+### HALF_BLOCK — default, grayscale
 
 Uses Unicode half-block characters:
 
@@ -289,7 +307,7 @@ Use ASCII if:
 
 ### ANSI_COLOR
 
-Uses ANSI colors where supported.
+Uses ANSI true-color output. Start `renderer.exe` with `--mode color` to select it.
 
 This uses full RGB colors and can be slower.
 
@@ -306,7 +324,7 @@ For the best experience:
 
 1. Use Windows Terminal instead of old legacy CMD.
 2. Full-color HALF_BLOCK playback can use substantial CPU.
-3. Reduce pixel density with `-` if playback becomes slow.
+3. Press `-` to lower output dimensions if playback becomes slow.
 4. Close heavy background applications.
 
 ---
@@ -316,10 +334,9 @@ For the best experience:
 For weaker machines:
 
 ```text
-Renderer: ASCII
+Renderer: ASCII or HALF_BLOCK grayscale
 Terminal size: moderate
-Quality: lower
-Color: grayscale
+Quality: low or normal
 FPS target: 30
 ```
 
@@ -333,28 +350,18 @@ If playback is stuttering:
 
 ## Configuration
 
-YouTubeCMD can store user preferences in:
+Build and test the native executable directly:
 
-```text
-config.json
+```bat
+python native\build.py
+bin\renderer.exe --info
+bin\renderer.exe --selftest
+ffmpeg -f lavfi -i testsrc=size=320x180:rate=30 -vf format=gray -f rawvideo - | bin\renderer.exe --raw 320 180 30
 ```
 
-Example:
-
-```json
-{
-	"renderer_mode": "HALF_BLOCK",
-	"quality_level": 1.0,
-	"volume": 80,
-	"color_mode": "color"
-}
-```
-
-Supported settings include:
-- renderer mode
-- quality level
-- volume
-- color preference
+`YouTubeCMD.bat` uses HALF_BLOCK grayscale and normal quality by default. The
+existing `config.json` is retained for the Python compatibility player; the
+native player uses command-line mode and quality options.
 
 ---
 
@@ -526,6 +533,10 @@ Run the local renderer preview without YouTube or network access:
 python scripts\local_render_test.py
 ```
 
+Native checks compile C++ and test `--info`, grayscale raw frames, RGB raw frames,
+and stream metadata parsing. The full YouTube playback test requires FFmpeg and
+network access.
+
 ---
 
 ## Development Roadmap
@@ -541,17 +552,15 @@ python scripts\local_render_test.py
 - yt-dlp extraction
 - friendly errors
 
-### Phase 3 — Renderer
-- terminal detection
-- ANSI setup
-- ASCII mode
-- HALF_BLOCK mode
-- cleanup
+### Phase 3 — Native Renderer
+- C++17 terminal detection and ANSI setup
+- ASCII and HALF_BLOCK modes
+- raw-frame input and terminal cleanup
 
-### Phase 4 — Playback
+### Phase 4 — Native Playback
 - FFmpeg raw frames
-- frame pacing
-- audio playback
+- 30 FPS frame pacing and adaptive quality
+- FFplay audio playback
 - status bar
 
 ### Phase 5 — Controls
@@ -574,7 +583,6 @@ python scripts\local_render_test.py
 
 Possible future improvements:
 
-- C++ native renderer
 - Rust native renderer
 - low-RAM ASCII mode
 - smarter frame dropping

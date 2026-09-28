@@ -8,9 +8,20 @@ if errorlevel 1 goto failed
 call scripts\check_ffmpeg.bat
 if errorlevel 1 goto failed
 
+".venv\Scripts\python.exe" native\build.py
+if errorlevel 1 goto failed
+
 set "PYTHONPATH=%CD%\src"
-".venv\Scripts\python.exe" -m youtubecmd.player %*
+echo YouTubeCMD
+set "STREAM_FILE=%TEMP%\YouTubeCMD-stream-%RANDOM%-%RANDOM%.json"
+".venv\Scripts\python.exe" -m youtubecmd.extract %* > "%STREAM_FILE%"
 set "EXIT_CODE=%ERRORLEVEL%"
+if not "%EXIT_CODE%"=="0" goto finished
+"bin\renderer.exe" --stream "%STREAM_FILE%"
+set "EXIT_CODE=%ERRORLEVEL%"
+
+:finished
+if exist "%STREAM_FILE%" del /q "%STREAM_FILE%"
 popd
 exit /b %EXIT_CODE%
 

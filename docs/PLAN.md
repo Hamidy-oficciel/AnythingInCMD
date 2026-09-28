@@ -52,19 +52,15 @@ User
   ↓
 YouTubeCMD.bat
   ↓
-Python setup / environment check
+Python setup / URL extraction
   ↓
-player.py
+stream.json
   ↓
-yt-dlp extraction
+bin/renderer.exe
   ↓
-FFmpeg video decode process
+FFmpeg video decode + FFplay audio
   ↓
-raw frames
-  ↓
-renderer.py
-  ↓
-ANSI / Unicode / ASCII terminal output
+native C++ frame loop and terminal renderer
 ```
 
 Audio path:
@@ -72,7 +68,7 @@ Audio path:
 ```text
 yt-dlp audio URL
   ↓
-FFmpeg / ffplay audio process
+FFplay child process
   ↓
 Windows audio device
 ```
@@ -84,21 +80,17 @@ Windows audio device
 ### Required
 - Windows 10 or Windows 11
 - Python 3.10+
+- C++17 compiler: MSVC Build Tools or MinGW-w64
 - FFmpeg installed and available in PATH
 - `yt-dlp`
-- Python standard library
-
-### Optional but useful
-- Pillow for image resizing
-- NumPy for frame processing
-- pytest for tests
+- Python standard library for URL extraction and setup
 
 ### Avoid unless necessary
 - OpenCV
 - Heavy GUI libraries
 - Full video download
 - Large frame queues
-- Unnecessary compiled binaries in the main stable branch
+- Python in the per-frame render path
 
 ---
 
@@ -118,24 +110,29 @@ YouTubeCMD/
   src/
     youtubecmd/
       __init__.py
-      player.py
-      renderer.py
-      input_controller.py
-      setup.py
-      config.py
+      extract.py
+      streams.py
   scripts/
     make_venv.bat
     check_ffmpeg.bat
     local_render_test.py
+  native/
+    build.py
+    build_msvc.bat
+    build_mingw.bat
+    src/
+      main.cpp
+      console.cpp
+      renderer.cpp
+      stream.cpp
+      media.cpp
+      player.cpp
+  bin/renderer.exe (built on first launch)
   tests/
-    test_renderer.py
+    test_native.py
+    test_extract.py
     test_url_validation.py
-    test_config.py
-    fixtures/
-  experiments/
-    cpp-renderer/
-    rust-renderer/
-    low-ram/
+    test_renderer.py
   YouTubeCMD.bat
   requirements.txt
   README.md
@@ -143,16 +140,17 @@ YouTubeCMD/
   .gitignore
 ```
 
-The main stable version should remain Python-based.
-
-Native C++ or Rust renderers may be added later inside `experiments/`, but they should not become the default until they are stable and clearly faster.
+Python is limited to stream extraction and setup. C++ owns media processes, frame
+buffers, timing, keyboard controls, and terminal rendering. The launcher builds
+the executable once and reuses it until native sources change.
 
 ---
 
 ## 6. Playback Pipeline
 
 ### Step 1 — Launch
-`YouTubeCMD.bat` resolves its own directory and starts the Python entry point.
+`YouTubeCMD.bat` resolves its own directory, checks dependencies, builds the C++
+executable if needed, extracts stream metadata, then starts `renderer.exe`.
 
 ### Step 2 — Setup
 The setup module:
@@ -160,11 +158,10 @@ The setup module:
 - Creates or reuses `.venv`.
 - Installs dependencies.
 - Checks FFmpeg.
-- Checks terminal ANSI support.
-- Loads configuration.
+- Builds the C++17 player using MSVC or MinGW.
 
 ### Step 3 — URL Prompt
-The player asks:
+The Python extractor asks:
 
 ```text
 YouTube URL:
@@ -205,10 +202,9 @@ Both start from the same playback position.
 
 ### Step 6 — Frame Loop
 For each frame:
-1. Read raw frame from FFmpeg stdout.
-2. Convert to terminal render target.
-3. Render using selected mode.
-4. Write to terminal efficiently.
+1. Read raw frame from FFmpeg stdout into one reusable buffer.
+2. Render using the selected C++ mode.
+3. Write one frame to the terminal.
 5. Respect frame timing.
 6. Drop frames if rendering is behind.
 
@@ -222,7 +218,7 @@ Commands:
 - volume
 - restart
 - quality change
-- renderer mode change
+- renderer mode selection at launch
 - fullscreen attempt
 
 ### Step 8 — Cleanup
@@ -312,12 +308,15 @@ not:
 
 ## 9. Audio and Synchronization
 
-Audio is the master clock.
+FFplay owns audio output. Audio and FFmpeg video start from the same seek
+position, and the native player uses a monotonic playback timeline capped at
+the source rate and 30 FPS. The current implementation does not read FFplay's
+internal audio clock, so long-run A/V drift still needs Windows playback testing.
 
 Video rendering should:
-- follow source timestamps/fps
-- drop frames if late
-- avoid accumulating latency
+- follow the selected source rate, capped at 30 FPS
+- lower render dimensions and then output FPS when repeatedly late
+- avoid accumulating raw frames in a large queue
 - restart cleanly after seek
 - stay reasonably synchronized with audio
 
@@ -345,8 +344,8 @@ Seek behavior:
 | `Down Arrow` | Volume down |
 | `R` | Restart video |
 | `F` | Toggle fullscreen / maximize console if supported |
-| `+` | Increase render quality |
-| `-` | Decrease render quality |
+| `+` | Increase quality: low → normal → high |
+| `-` | Decrease quality: high → normal → low |
 
 The status bar should show:
 - playback state
@@ -354,7 +353,10 @@ The status bar should show:
 - duration
 - volume
 - renderer mode
-- quality/resolution
+- quality, output dimensions, and measured FPS
+
+Select `ascii`, `halfblock`, or `color` with the native executable's `--mode`
+option. HALF_BLOCK grayscale and normal quality are the launcher defaults.
 
 It must not scroll over the video.
 
@@ -400,21 +402,18 @@ Tracebacks may be logged for debugging, but the terminal should show a clean mes
 
 ---
 
-## 12. Configuration
+## 12. Stream Contract and Configuration
 
-Store only stable user preferences in `config.json`.
+Python writes a temporary `stream.json` containing video/audio URLs, title,
+duration, FPS, and source dimensions. C++ consumes it with:
 
-Example:
-```json
-{
-  "renderer_mode": "HALF_BLOCK",
-  "quality_level": 1.0,
-  "volume": 80,
-  "color_mode": "grayscale"
-}
+```text
+renderer.exe --stream stream.json --mode halfblock --quality normal
 ```
 
-Do not store temporary playback state unless useful.
+Quality levels control terminal output dimensions, not source resolution.
+Stream extraction prefers sources at or below 480p. The previous `config.json`
+belongs to the Python compatibility player and is not read by the native path.
 
 ---
 
@@ -432,6 +431,7 @@ Done when:
 ```text
 YouTubeCMD.bat starts and shows prompt
 ```
+Status: implemented; Windows launcher still requires a Windows runtime check.
 
 ### Phase 2 — Stream Selection
 Goal:
@@ -445,6 +445,7 @@ Done when:
 valid URL returns stream info
 invalid URL shows clean error
 ```
+Status: implemented and unit-tested.
 
 ### Phase 3 — Renderer Foundation
 Goal:
@@ -458,6 +459,8 @@ Done when:
 ```text
 local generated frames render correctly
 ```
+Status: implemented; `--info`, raw ASCII/RGB frames, and interactive selftest
+were exercised in the Linux development environment.
 
 ### Phase 4 — Real-Time Playback
 Goal:
@@ -470,6 +473,8 @@ Done when:
 ```text
 video and audio play together
 ```
+Status: implemented, but end-to-end playback remains unverified because FFmpeg
+and FFplay are unavailable in the current environment.
 
 ### Phase 5 — Controls
 Goal:
@@ -484,6 +489,7 @@ Done when:
 ```text
 controls work without breaking playback
 ```
+Status: implemented; controls need real Windows/FFmpeg playback validation.
 
 ### Phase 6 — Hardening
 Goal:
@@ -498,6 +504,8 @@ Done when:
 ```text
 project is stable and user-friendly
 ```
+Status: native tests and CI build are in place; Windows terminal, memory, and
+long-playback synchronization measurements remain outstanding.
 
 ---
 

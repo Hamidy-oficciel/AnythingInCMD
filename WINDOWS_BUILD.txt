@@ -1,0 +1,196 @@
+YouTubeCMD - Windows Build and Run Guide
+========================================
+
+This guide builds the native C++ player and runs YouTubeCMD on Windows 10/11.
+The Python side only extracts YouTube stream information. C++ handles FFmpeg,
+FFplay, frame rendering, keyboard controls, and terminal cleanup.
+
+1. Requirements
+---------------
+
+Required:
+- Windows 10 or Windows 11, x64.
+- Python 3.10 or newer. Enable "Add Python to PATH" during installation.
+- One C++17 compiler:
+  A. Recommended: Visual Studio Build Tools with the "Desktop development with
+     C++" workload, including MSVC and the Windows 10/11 SDK.
+  B. Alternative: MinGW-w64 with g++ available in PATH.
+- FFmpeg available in PATH, and its build must include both ffmpeg.exe and
+  ffplay.exe.
+- Internet access for yt-dlp stream extraction and Python package installation.
+- Windows Terminal is recommended for ANSI colors and Unicode half-blocks.
+
+Git is only needed if you are cloning the project. The project does not require
+OpenCV, NumPy, or other image-processing packages.
+
+2. Install prerequisites
+------------------------
+
+Python:
+1. Install Python 3.10+ from https://www.python.org/downloads/windows/.
+2. Enable "Add Python to PATH".
+3. Close and reopen Command Prompt or Windows Terminal.
+
+MSVC (recommended):
+1. Install Visual Studio Build Tools from:
+   https://visualstudio.microsoft.com/visual-cpp-build-tools/
+2. Select the "Desktop development with C++" workload.
+3. Include MSVC C++ build tools and a Windows 10/11 SDK.
+4. The build script searches for Visual Studio Build Tools using vswhere and
+   starts its developer environment automatically.
+
+MinGW-w64 (alternative):
+1. Install a 64-bit MinGW-w64 distribution.
+2. Add the folder containing g++.exe to PATH.
+3. Open a new terminal and verify `g++ --version` works.
+
+FFmpeg:
+1. Install an FFmpeg build that includes ffmpeg.exe and ffplay.exe.
+2. Add the folder containing both programs to PATH.
+3. Open a new terminal and verify:
+   ffmpeg -version
+   ffplay -version
+
+The project README recommends this winget package as one installation option:
+   winget install Gyan.FFmpeg
+
+3. Get the project
+------------------
+
+Open Command Prompt or Windows Terminal in the repository folder, the folder
+containing YouTubeCMD.bat. If cloning the repository:
+   git clone https://github.com/Hamidy-oficciel/YoutubeCMD.git
+   cd YoutubeCMD
+
+Check Python:
+   py -3 --version
+
+If the `py` launcher is unavailable, use `python` instead. The launcher accepts
+Python 3.10+ through either `py -3` or `python`.
+
+4. Build renderer.exe manually
+------------------------------
+
+From the repository root, run:
+   py -3 native\build.py
+
+The build script creates `bin\renderer.exe` and reuses it until a C++ source or
+header changes. It selects MSVC when Visual Studio Build Tools are installed;
+otherwise, it uses g++ if MinGW-w64 is in PATH.
+
+Manual MSVC build:
+   call native\build_msvc.bat
+
+Manual MinGW-w64 build:
+   call native\build_mingw.bat
+
+Check that the executable starts:
+   bin\renderer.exe --info
+
+Expected output includes the terminal dimensions and a 30 FPS target.
+The generated executable is a build output; it is not required to be committed.
+
+5. Test the renderer
+--------------------
+
+Interactive animated test pattern:
+   bin\renderer.exe --selftest
+
+Press Q to quit. The terminal should return to its normal screen with the cursor
+visible. Other modes can be tested with:
+   bin\renderer.exe --selftest ascii
+   bin\renderer.exe --selftest color
+
+Raw grayscale test using FFmpeg's generated test image:
+   ffmpeg -f lavfi -i testsrc=size=320x180:rate=30 -vf format=gray -f rawvideo - | bin\renderer.exe --raw 320 180 30 ascii
+
+Raw RGB test:
+   ffmpeg -f lavfi -i testsrc=size=320x180:rate=30 -vf format=rgb24 -f rawvideo - | bin\renderer.exe --raw 320 180 30 color
+
+Press Q to stop the raw renderer. If the FFmpeg build does not provide the
+lavfi test source, skip these two pipe tests and use --selftest instead.
+
+6. Run YouTubeCMD
+-----------------
+
+Double-click YouTubeCMD.bat, or run it from Command Prompt:
+   YouTubeCMD.bat
+
+On first launch, the launcher:
+1. Creates `.venv` if it does not exist.
+2. Installs yt-dlp from requirements.txt if needed.
+3. Checks that ffmpeg.exe and ffplay.exe are in PATH.
+4. Builds bin\renderer.exe if missing or out of date.
+5. Prompts for a YouTube URL and starts playback.
+
+You can also pass a URL:
+   YouTubeCMD.bat https://www.youtube.com/watch?v=VIDEO_ID
+
+Playback defaults to HALF_BLOCK grayscale, normal quality, and a 30 FPS cap.
+Press + to increase quality or - to reduce it. If rendering remains late, the
+player automatically reduces terminal output dimensions and then frame rate.
+The color renderer can be started directly after obtaining stream metadata:
+   bin\renderer.exe --stream PATH_TO_STREAM_JSON --mode color --quality high
+
+7. Controls
+-----------
+
+Q or Esc       Quit
+Space          Pause or resume
+Left Arrow     Seek backward 5 seconds
+Right Arrow    Seek forward 5 seconds
+Up Arrow       Volume up
+Down Arrow     Volume down
+R              Restart from the beginning
+F              Try to maximize the console
++              Raise quality: low, normal, high
+-              Lower quality: high, normal, low
+
+8. Run tests
+-------------
+
+Install development test dependencies:
+   py -3 -m pip install -r requirements-dev.txt
+
+Run the Python and native integration tests:
+   py -3 -m pytest
+
+The native integration tests compile the C++ source on POSIX systems. On Windows,
+use `py -3 native\build.py` and `bin\renderer.exe --info` to verify the MSVC or
+g++ executable build. The normal YouTube playback path additionally requires
+FFmpeg, ffplay, and internet access.
+
+9. Troubleshooting
+------------------
+
+"Python 3.10 or newer is required":
+- Install or select Python 3.10+.
+- Reopen the terminal so PATH changes take effect.
+- Check `py -3 --version` or `python --version`.
+
+"MSVC compiler was not found":
+- Install Visual Studio Build Tools and the "Desktop development with C++"
+  workload, then rerun `py -3 native\build.py`.
+- Alternatively, install MinGW-w64 and verify `g++ --version`.
+
+"Native renderer build failed":
+- Run the build command directly to see compiler output:
+  py -3 native\build.py
+- Confirm all native\src .cpp/.hpp files are present.
+- Check that the selected compiler supports C++17.
+
+"FFmpeg was not found" or "ffplay was not found":
+- Add the directory containing ffmpeg.exe and ffplay.exe to PATH.
+- Close and reopen the terminal, then rerun the version checks.
+
+ANSI colors or the half-block character do not display correctly:
+- Use Windows Terminal and a UTF-8-compatible terminal font.
+- Start with `--mode ascii` if the terminal cannot display Unicode blocks.
+
+Playback is choppy:
+- Press - to lower quality, or use ASCII mode.
+- Reduce the terminal window dimensions.
+- Close CPU-heavy background programs.
+- True-color output requires more terminal work than grayscale.
+
+End of guide.

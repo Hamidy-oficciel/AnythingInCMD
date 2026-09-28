@@ -43,18 +43,5 @@ if errorlevel 1 (
     )
 )
 
-set "NATIVE_SOURCE=src\youtubecmd\_native_renderer.c"
-set "NATIVE_MARKER=.venv\.native-renderer-source"
-".venv\Scripts\python.exe" -c "import hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); m=pathlib.Path(sys.argv[2]); h=hashlib.sha256(p.read_bytes()).hexdigest(); raise SystemExit(0 if m.exists() and m.read_text()==h else 1)" "%NATIVE_SOURCE%" "%NATIVE_MARKER%" >nul 2>nul
-if errorlevel 1 (
-    echo Building the optional native renderer...
-    ".venv\Scripts\python.exe" -m pip install --disable-pip-version-check --no-deps -e .
-    if errorlevel 1 (
-        echo Native renderer build failed. YouTubeCMD can still use its Python fallback.
-    ) else (
-        ".venv\Scripts\python.exe" -c "import hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); pathlib.Path(sys.argv[2]).write_text(hashlib.sha256(p.read_bytes()).hexdigest())" "%NATIVE_SOURCE%" "%NATIVE_MARKER%"
-    )
-)
-
 popd
 exit /b 0
