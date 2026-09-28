@@ -31,6 +31,14 @@ class PlayerTests(unittest.TestCase):
         self.assertLessEqual(height, 29)
         self.assertAlmostEqual((width / height) * 0.5, 16 / 9, delta=0.04)
 
+    def test_render_grid_never_exceeds_terminal_at_legacy_quality_value(self):
+        width, height = _render_dimensions(
+            self.stream, Config(quality_level=1.5), 80, 24
+        )
+
+        self.assertLessEqual(width, 80)
+        self.assertLessEqual(height, 46)
+
     @patch("youtubecmd.player.subprocess.Popen")
     def test_ascii_ffmpeg_filter_scales_into_character_grid(self, popen):
         _start_video(self.stream, 0, 100, 56, "ASCII", 30)

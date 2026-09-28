@@ -45,6 +45,14 @@ class RendererTests(unittest.TestCase):
         self.assertIn("38;2;76;76;76m", result)
         self.assertIn("48;2;29;29;29m", result)
 
+    def test_color_half_block_preserves_rgb_channels(self):
+        result = render_half_block(
+            bytes((255, 0, 0, 0, 0, 255)), 1, 2, color=True
+        )
+
+        self.assertIn("38;2;255;0;0m", result)
+        self.assertIn("48;2;0;0;255m", result)
+
     def test_odd_half_block_height_fills_bottom_with_black(self):
         result = render_half_block(bytes((255, 255, 255)), 1, 1)
 

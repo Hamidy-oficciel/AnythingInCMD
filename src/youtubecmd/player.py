@@ -17,9 +17,10 @@ from youtubecmd.streams import StreamError, StreamInfo, extract_streams, validat
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = PROJECT_ROOT / "config.json"
-MAX_SOURCE_HEIGHT = 480
-MAX_RENDER_FPS = 30.0
+MAX_SOURCE_HEIGHT = 1080
+MAX_RENDER_FPS = 60.0
 SEEK_SECONDS = 5.0
+RESIZE_DEBOUNCE_SECONDS = 0.15
 
 
 def _terminal_size() -> tuple[int, int]:
@@ -30,7 +31,7 @@ def _terminal_size() -> tuple[int, int]:
 def _render_dimensions(
     stream: StreamInfo, config: Config, columns: int, lines: int
 ) -> tuple[int, int]:
-    scale = config.quality_level
+    scale = min(1.0, max(0.5, config.quality_level))
     max_width = max(1, int(columns * scale))
     rows_for_video = max(1, lines - 1)
     if config.renderer_mode == "ASCII":
@@ -209,6 +210,8 @@ def play(stream: StreamInfo, config: Config) -> None:
     audio_process = None
     video_process = None
     dimensions = (0, 0)
+    resize_candidate = None
+    resize_observed_at = 0.0
     columns, lines = _terminal_size()
     if lines < 8 or columns < 40:
         print("Terminal is small; video will use the available area.")
@@ -288,7 +291,7 @@ def play(stream: StreamInfo, config: Config) -> None:
                 elif key in ("+", "-"):
                     change = 0.1 if key == "+" else -0.1
                     config.quality_level = round(
-                        min(1.5, max(0.5, config.quality_level + change)), 2
+                        min(1.0, max(0.5, config.quality_level + change)), 2
                     )
                     position = current_position
                     restart = True
@@ -321,16 +324,33 @@ def play(stream: StreamInfo, config: Config) -> None:
                     time.sleep(0.05)
                     continue
 
+                current_columns, current_lines = _terminal_size()
                 current_dimensions = _render_dimensions(
-                    stream, config, *_terminal_size()
+                    stream, config, current_columns, current_lines
                 )
                 if current_dimensions != dimensions:
-                    position = current_position
-                    stop_processes()
-                    launch(position)
-                    next_frame_at = time.monotonic()
-                    _write_status(stream, config, position, False, *dimensions)
-                    continue
+                    now = time.monotonic()
+                    if current_dimensions != resize_candidate:
+                        resize_candidate = current_dimensions
+                        resize_observed_at = now
+                    elif now - resize_observed_at >= RESIZE_DEBOUNCE_SECONDS:
+                        position = current_position
+                        _stop_process(video_process)
+                        columns, lines = current_columns, current_lines
+                        dimensions = current_dimensions
+                        video_process = _start_video(
+                            stream, position, *dimensions,
+                            config.renderer_mode, stream.fps
+                        )
+                        playback_started_at = time.monotonic()
+                        resize_candidate = None
+                        next_frame_at = time.monotonic()
+                        sys.stdout.write("\x1b[2J\x1b[H")
+                        sys.stdout.flush()
+                        _write_status(stream, config, position, False, *dimensions)
+                        continue
+                else:
+                    resize_candidate = None
 
                 frame = _read_frame(video_process, dimensions[0] * dimensions[1] * 3)
                 if frame is None:
@@ -398,9 +418,8 @@ def main(argv: list[str] | None = None) -> int:
         print("Invalid YouTube URL.", file=sys.stderr)
         return 2
 
-    max_height = min(720, max(240, round(MAX_SOURCE_HEIGHT * config.quality_level)))
     try:
-        stream = extract_streams(url, max_height=max_height)
+        stream = extract_streams(url, max_height=MAX_SOURCE_HEIGHT)
         print(f"Playing: {stream.title}")
         play(stream, config)
     except StreamError as error:

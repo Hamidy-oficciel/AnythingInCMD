@@ -11,7 +11,7 @@ DEFAULT_CONFIG = {
     "renderer_mode": "HALF_BLOCK",
     "quality_level": 1.0,
     "volume": 80,
-    "color_mode": "grayscale",
+    "color_mode": "color",
 }
 
 
@@ -20,7 +20,7 @@ class Config:
     renderer_mode: str = "HALF_BLOCK"
     quality_level: float = 1.0
     volume: int = 80
-    color_mode: str = "grayscale"
+    color_mode: str = "color"
 
 
 def load_config(path: str | Path) -> Config:
@@ -43,15 +43,15 @@ def load_config(path: str | Path) -> Config:
         quality = float(values.get("quality_level", 1.0))
     except (TypeError, ValueError):
         quality = 1.0
-    if not 0.5 <= quality <= 1.5:
-        quality = min(1.5, max(0.5, quality))
+    if not 0.5 <= quality <= 1.0:
+        quality = min(1.0, max(0.5, quality))
 
     try:
         volume = int(values.get("volume", 80))
     except (TypeError, ValueError):
         volume = 80
 
-    color_mode = str(values.get("color_mode", "grayscale")).lower()
+    color_mode = str(values.get("color_mode", "color")).lower()
     if color_mode not in {"grayscale", "color"}:
         color_mode = "grayscale"
 

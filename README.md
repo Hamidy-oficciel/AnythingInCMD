@@ -235,9 +235,11 @@ Then playback should begin.
 | `Down Arrow` | Volume down |
 | `R` | Restart video |
 | `F` | Try fullscreen / maximize console |
-| `+` | Increase render quality |
-| `-` | Decrease render quality |
+| `+` | Increase pixel density up to the terminal's full size |
+| `-` | Reduce pixel density |
 | `M` | Cycle renderer mode |
+
+The display refreshes automatically after the terminal is resized.
 
 ---
 
@@ -273,7 +275,7 @@ Uses brightness-based characters:
 
 The mapping ends with a space character.
 
-This mode is faster and more compatible.
+This mode is faster and more compatible, but uses grayscale characters.
 
 Use ASCII if:
 - your terminal is slow
@@ -287,7 +289,7 @@ Use ASCII if:
 
 Uses ANSI colors where supported.
 
-This may look better, but it can be slower.
+This uses full RGB colors and can be slower.
 
 Use it only if:
 - your terminal supports ANSI colors well
@@ -301,12 +303,9 @@ Use it only if:
 For the best experience:
 
 1. Use Windows Terminal instead of old legacy CMD.
-2. Start with ASCII or HALF_BLOCK grayscale.
-3. Do not make the terminal extremely large.
-4. Keep source resolution around 360p or 480p.
-5. Do not expect real 720p terminal output.
-6. Lower quality if playback becomes slow.
-7. Close heavy background applications.
+2. Full-color HALF_BLOCK playback can use substantial CPU.
+3. Reduce pixel density with `-` if playback becomes slow.
+4. Close heavy background applications.
 
 ---
 
@@ -345,11 +344,11 @@ Example:
 	"renderer_mode": "HALF_BLOCK",
 	"quality_level": 1.0,
 	"volume": 80,
-	"color_mode": "grayscale"
+	"color_mode": "color"
 }
 ```
 
-Supported settings may include:
+Supported settings include:
 - renderer mode
 - quality level
 - volume

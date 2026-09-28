@@ -9,7 +9,9 @@ from youtubecmd.config import Config, load_config, save_config
 class ConfigTests(unittest.TestCase):
     def test_missing_config_uses_defaults(self):
         with tempfile.TemporaryDirectory() as directory:
-            self.assertEqual(load_config(Path(directory) / "config.json"), Config())
+            config = load_config(Path(directory) / "config.json")
+            self.assertEqual(config, Config())
+            self.assertEqual(config.color_mode, "color")
 
     def test_save_and_load_round_trip(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -32,7 +34,7 @@ class ConfigTests(unittest.TestCase):
             config = load_config(path)
 
             self.assertEqual(config.renderer_mode, "HALF_BLOCK")
-            self.assertEqual(config.quality_level, 1.5)
+            self.assertEqual(config.quality_level, 1.0)
             self.assertEqual(config.volume, 0)
 
 
