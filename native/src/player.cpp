@@ -49,6 +49,7 @@ const char* modeName(RenderMode mode) {
     if (mode == RenderMode::Ascii) return "ASCII";
     if (mode == RenderMode::Color) return "ANSI_COLOR";
     if (mode == RenderMode::Pixel) return "RGB_PIXELS";
+    if (mode == RenderMode::TerminalPixel) return "RGB_TERMINAL_PIXELS";
     return "HALF_BLOCK";
 }
 
@@ -58,8 +59,10 @@ Dimensions renderDimensions(const StreamInfo& stream, const TerminalSize& termin
     const int maxWidth = std::max(1, static_cast<int>(terminal.columns * scale));
     const int rows = std::max(1, terminal.rows - (mode == RenderMode::Pixel ? 0 : 2));
     const int maxHeight = std::max(1, static_cast<int>(rows *
-        ((mode == RenderMode::Ascii || mode == RenderMode::Pixel) ? 1.0 : 2.0) * scale));
-    const double cellAspect = mode == RenderMode::Ascii ? 0.5 : 1.0;
+        ((mode == RenderMode::Ascii || mode == RenderMode::Pixel ||
+          mode == RenderMode::TerminalPixel) ? 1.0 : 2.0) * scale));
+    const double cellAspect = mode == RenderMode::Ascii || mode == RenderMode::TerminalPixel
+        ? 0.5 : 1.0;
     const double targetRatio = (static_cast<double>(stream.width) / stream.height) / cellAspect;
     int width;
     int height;
@@ -135,8 +138,9 @@ void updatePixelTitle(PixelWindow& window, const StreamInfo& stream, bool paused
 
 std::string videoFilter(Dimensions dimensions, RenderMode mode, double fps) {
     std::ostringstream filter;
-    const char* scaleFlags = mode == RenderMode::Pixel ? "neighbor" : "fast_bilinear";
-    const bool fullColor = mode == RenderMode::Color || mode == RenderMode::Pixel;
+    const bool pixelMode = mode == RenderMode::Pixel || mode == RenderMode::TerminalPixel;
+    const char* scaleFlags = pixelMode ? "neighbor" : "fast_bilinear";
+    const bool fullColor = mode == RenderMode::Color || pixelMode;
     filter << "scale=" << dimensions.width << ':' << dimensions.height
            << ":force_original_aspect_ratio=decrease:flags=" << scaleFlags << ",pad="
            << dimensions.width << ':' << dimensions.height << ":(ow-iw)/2:(oh-ih)/2:black,fps="
@@ -147,7 +151,8 @@ std::string videoFilter(Dimensions dimensions, RenderMode mode, double fps) {
 
 std::vector<std::string> videoCommand(const StreamInfo& stream, double position,
                                      Dimensions dimensions, RenderMode mode, double fps) {
-    const bool fullColor = mode == RenderMode::Color || mode == RenderMode::Pixel;
+    const bool fullColor = mode == RenderMode::Color || mode == RenderMode::Pixel ||
+        mode == RenderMode::TerminalPixel;
     return {"ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-ss",
         number(position), "-i", stream.videoUrl, "-an", "-vf",
         videoFilter(dimensions, mode, fps), "-pix_fmt", fullColor ? "rgb24" : "gray",
@@ -214,7 +219,8 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
     };
     ChildProcess video;
     ChildProcess audio;
-    const int channels = mode == RenderMode::Color || pixelMode ? 3 : 1;
+    const int channels = mode == RenderMode::Color || mode == RenderMode::TerminalPixel ||
+        pixelMode ? 3 : 1;
     double fps = std::max(1.0, std::min(kMaxFps, stream.fps));
     auto frameInterval = std::chrono::duration<double>(1.0 / fps);
     int volume = 80;
@@ -247,7 +253,7 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
     auto startAll = [&](double at) {
         video.stop();
         audio.stop();
-        if (!startAudio(at) || !startVideo(at)) {
+        if (!startVideo(at)) {
             video.stop();
             audio.stop();
             return false;
@@ -255,6 +261,11 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
         position = at;
         playbackStarted = std::chrono::steady_clock::now();
         nextFrame = playbackStarted;
+        if (!startAudio(at)) {
+            video.stop();
+            audio.stop();
+            return false;
+        }
         return true;
     };
     if (!startAll(position)) {

@@ -3,7 +3,7 @@ YouTubeCMD - Windows Build and Run Guide
 
 This guide builds the native C++ player and runs YouTubeCMD on Windows 10/11.
 The Python side extracts YouTube stream information. C++ handles FFmpeg,
-FFplay, a resizable RGB pixel window, keyboard controls, and cleanup.
+FFplay, full-color terminal rendering, keyboard controls, and cleanup.
 
 1. Requirements
 ---------------
@@ -18,7 +18,7 @@ Required:
 - FFmpeg available in PATH, and its build must include both ffmpeg.exe and
   ffplay.exe.
 - Internet access for yt-dlp stream extraction and Python package installation.
-- CMD or Windows Terminal can launch the player; video appears in a separate window.
+- CMD or Windows Terminal displays the video directly in its terminal area.
 
 Git is only needed if you are cloning the project. The project does not require
 OpenCV, NumPy, or other image-processing packages.
@@ -127,11 +127,12 @@ You can also pass a URL:
    YouTubeCMD.bat https://www.youtube.com/watch?v=VIDEO_ID
 
 At launch, choose the source video resolution (360p, 480p, 720p, 1080p, or best
-available). Playback opens a separate window in full RGB with high render
-resolution and a 30 FPS cap. Press + or - while that window is focused to adjust
-render resolution. Resizing the window automatically adjusts the picture. If
-rendering remains late, the player lowers render resolution and then frame rate.
-The pixel window can be started directly after obtaining stream metadata:
+available). Playback renders full RGB pixels in the terminal, with high render
+resolution and a 30 FPS cap. Press + or - to adjust render resolution. Resizing
+the terminal automatically adjusts the picture. Video starts before audio to
+reduce startup offset; if rendering remains late, the player lowers render
+resolution and then frame rate. An optional separate pixel window can be started
+directly after obtaining stream metadata:
    bin\renderer.exe --stream PATH_TO_STREAM_JSON --mode pixel --quality high
 
 7. Controls
