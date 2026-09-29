@@ -1,86 +1,47 @@
 # BrowserCMD
 
-BrowserCMD is a Windows-first terminal browser project. The current M0 release
-is a development scaffold only: it can build and run a native C++17 hello
-renderer and Python smoke tests, but it does not launch a browser or render web
-pages yet.
+BrowserCMD is a Windows-first terminal browser project. The M1 browser-capture
+path is implemented but has not yet been verified against a real browser in
+this workspace. It does not render pages in the terminal yet.
 
-## M0 Scaffold
+## M1 Capture Spike
 
-- `native/build.py` builds a small native renderer with source-hash reuse.
-- `renderer --selftest` runs a noninteractive build smoke test.
-- The Python package starts and reports that browser functionality is not yet
-  implemented.
-- CI is configured for Windows and Ubuntu.
+The engine code normalizes and restricts top-level URLs, discovers installed
+Edge, Chrome, Chromium, or Brave, starts the browser headless with a temporary
+profile and loopback-only CDP, checks required CDP methods against
+`/json/protocol`, and attempts to capture a PNG, screencast JPEG, and bounded DOM
+text/style JSON. The full capture path still requires verification with an
+installed supported browser. No browser binary is bundled.
 
-Browser navigation, terminal rendering, and the product features in the
-roadmap are not available in this milestone.
+The native renderer remains an M0 hello/self-test executable; terminal page
+rendering and the remaining product features are not implemented yet.
 
-## Development Checks
+## Run
 
-Requires Python 3.10 or newer and a C++17 compiler (`cl`/MSVC or `g++`). On
-Windows, use `py -3` in place of `python` if needed.
+Requires Python 3.10+ and an installed Edge, Chrome, Chromium, or Brave.
 
 ```sh
 python -m pip install -e ".[test]"
-python native/build.py
-python bin/renderer --selftest
+python -m browsercmd.cli https://example.org
 python -m pytest
 ```
 
-On Windows the executable is `bin/renderer.exe`.
-
-On Windows, `BrowserCMD.bat [url]` creates a venv, installs the currently empty
-runtime requirements, builds the renderer, and starts the scaffold engine. It
-does not open the supplied URL because browser support is not implemented.
+Capture files are written to `artifacts/m1/` by default. Change the output path
+with `--output-dir`. On Windows, `BrowserCMD.bat [url]` creates the venv,
+installs the bounded runtime dependency, builds the native self-test program,
+and runs the capture command. The capture is diagnostic output, not a terminal
+browser UI.
 
 ## Verification
 
-**VERIFIED on Ubuntu with Python 3.14.2 and `g++`:** `python native/build.py`
-built the renderer, `bin/renderer --selftest` printed
-`BrowserCMD renderer self-test: OK`, and `python -m pytest` reported `3 passed`.
+**VERIFIED in this Linux workspace:** Python 3.14.2; all 41 unit tests pass,
+including URL policy, mock CDP command/frame acknowledgment, browser discovery,
+loopback endpoint validation, snapshot bounds, and sanitized errors. Running
+the actual CLI here reports that no supported browser is installed.
 
-**NOT VERIFIED:** Windows launcher, MSVC build, and Windows terminal behavior;
-this workspace is Linux. The Windows CI job is configured but has not been run
-from this workspace.
+**NOT VERIFIED:** launching a real browser, the three M1 site captures and
+measured frame rate, Windows launcher/MSVC behavior, or terminal page rendering.
 
-The milestone plan is in [docs/PLAN.md](docs/PLAN.md), wire format in
-[docs/PROTOCOL.md](docs/PROTOCOL.md), and implementation choices in
-[docs/DECISIONS.md](docs/DECISIONS.md).
-# BrowserCMD
-
-BrowserCMD is the browser-based companion concept to YouTubeCMD. It keeps the
-same simple workflow: provide a YouTube link, choose a source quality, and
-watch the video. Instead of drawing frames as terminal characters, BrowserCMD
-shows the actual video in a browser player.
-
-## Concept
-
-- A lightweight local app opens a browser page for playback.
-- The page accepts a YouTube URL and offers 360p, 480p, 720p, 1080p, or best
-  available quality.
-- Video is displayed at its real frame dimensions and adapts when the browser
-  window changes size.
-- One browser media timeline handles picture and sound together, with play,
-  pause, seek, volume, and fullscreen controls.
-- Clear status and error messages cover invalid URLs, unavailable formats, and
-  missing playback dependencies.
-
-## Proposed Architecture
-
-- A small local Python service validates links and uses `yt-dlp` to inspect
-  available streams.
-- The browser provides the player UI and native video rendering.
-- The local service supplies a browser-playable media stream. If the selected
-  YouTube format separates audio and video, the service must mux or synchronize
-  them before playback rather than treating them as unrelated players.
-- The service listens on localhost and is started and stopped with the app.
-
-## Relationship to YouTubeCMD
-
-YouTubeCMD is the terminal-first player and remains its own project. BrowserCMD
-is a separate browser-first direction for users who want full video pixels,
-standard browser controls, and synchronized audio without terminal rendering.
-
-This folder currently documents the concept; it does not yet contain a working
-browser player.
+See [docs/PLAN.md](docs/PLAN.md) for milestone status,
+[docs/PROTOCOL.md](docs/PROTOCOL.md) for the future engine/renderer wire format,
+and [docs/DECISIONS.md](docs/DECISIONS.md) for implementation choices.

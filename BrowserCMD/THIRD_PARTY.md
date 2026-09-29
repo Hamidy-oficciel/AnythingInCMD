@@ -2,7 +2,7 @@
 
 ## Runtime
 
-M0 uses only the Python standard library and the C++ standard library. No third-party runtime code or binary is bundled.
+M1 uses `websockets` (`>=13,<16`) for the asynchronous Chrome DevTools Protocol connection. It is distributed under the BSD 3-Clause license. No browser binary is bundled.
 
 ## Development
 

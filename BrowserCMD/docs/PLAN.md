@@ -63,9 +63,11 @@ A milestone is not complete until its build and relevant tests pass and its docs
 
 ## Current status
 
-M0 is complete for the POSIX build-and-unit-test target. On Ubuntu with Python
-3.14.2 and `g++`, the native build succeeded, `renderer --selftest` printed
-`BrowserCMD renderer self-test: OK`, and pytest reported 3 passing tests.
-Windows launcher and MSVC behavior remain NOT VERIFIED because this milestone
-was run in a Linux workspace. No browser engine or web-page rendering behavior
-is claimed yet.
+M0 is complete for the POSIX build-and-unit-test target. M1's implementation is
+in progress: URL policy, browser discovery/lifecycle, runtime CDP schema checks,
+bounded screencast and DOM snapshot capture, and diagnostic file output are
+implemented. The full Python suite reports 41 passing tests on Ubuntu with
+Python 3.14.2. No supported browser is installed in this workspace, so real
+CDP operation, screenshots, Wikipedia/JavaScript-heavy captures, and measured
+frame rate are NOT VERIFIED; M1 acceptance is not yet met. Windows behavior
+also remains NOT VERIFIED.
