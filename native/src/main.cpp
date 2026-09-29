@@ -164,8 +164,8 @@ int main(int argc, char** argv) {
         return runRaw(width, height, fps, mode);
     }
     if (argc >= 3 && std::string(argv[1]) == "--stream") {
-        RenderMode mode = RenderMode::HalfBlock;
-        Quality quality = Quality::Normal;
+        RenderMode mode = RenderMode::Color;
+        Quality quality = Quality::High;
         for (int index = 3; index < argc; ++index) {
             const std::string option = argv[index];
             if (option == "--mode" && index + 1 < argc) {

@@ -126,9 +126,12 @@ On first launch, the launcher:
 You can also pass a URL:
    YouTubeCMD.bat https://www.youtube.com/watch?v=VIDEO_ID
 
-Playback defaults to HALF_BLOCK grayscale, normal quality, and a 30 FPS cap.
-Press + to increase quality or - to reduce it. If rendering remains late, the
-player automatically reduces terminal output dimensions and then frame rate.
+At launch, choose the source video resolution (360p, 480p, 720p, 1080p, or best
+available). Playback defaults to full RGB color, highest terminal render
+resolution, and a 30 FPS cap. Press + to increase terminal render resolution or
+- to reduce it. Resizing the terminal automatically adjusts the picture. If
+rendering remains late, the player reduces terminal output dimensions and then
+frame rate.
 The color renderer can be started directly after obtaining stream metadata:
    bin\renderer.exe --stream PATH_TO_STREAM_JSON --mode color --quality high
 

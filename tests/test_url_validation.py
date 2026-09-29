@@ -48,6 +48,19 @@ class UrlValidationTests(unittest.TestCase):
 
         self.assertIs(video, audio)
 
+    def test_best_quality_selects_highest_available_video(self):
+        info = {
+            "formats": [
+                {"url": "v720", "vcodec": "avc1", "acodec": "none", "height": 720},
+                {"url": "v1080", "vcodec": "avc1", "acodec": "none", "height": 1080},
+                {"url": "a128", "vcodec": "none", "acodec": "mp4a", "abr": 128},
+            ]
+        }
+
+        video, _audio = choose_formats(info, max_height=None)
+
+        self.assertEqual(video["url"], "v1080")
+
     def test_rejects_metadata_without_audio_video(self):
         with self.assertRaises(StreamError):
             choose_formats({"formats": []})

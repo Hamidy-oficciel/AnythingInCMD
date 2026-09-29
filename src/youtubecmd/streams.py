@@ -56,7 +56,7 @@ def _format_rank(item: dict) -> tuple[float, float]:
     return (float(item.get("height") or 0), float(item.get("tbr") or 0))
 
 
-def choose_formats(info: dict, max_height: int = 480) -> tuple[dict, dict]:
+def choose_formats(info: dict, max_height: int | None = 480) -> tuple[dict, dict]:
     formats = [item for item in info.get("formats", []) if item.get("url")]
     video_only = [
         item
@@ -73,7 +73,8 @@ def choose_formats(info: dict, max_height: int = 480) -> tuple[dict, dict]:
 
     if video_only and audio_only:
         eligible_video = [
-            item for item in video_only if (item.get("height") or 0) <= max_height
+            item for item in video_only
+            if max_height is None or (item.get("height") or 0) <= max_height
         ]
         video = max(eligible_video or video_only, key=_format_rank)
         audio = max(audio_only, key=lambda item: float(item.get("abr") or 0))
@@ -86,7 +87,8 @@ def choose_formats(info: dict, max_height: int = 480) -> tuple[dict, dict]:
         and item.get("acodec") not in (None, "none")
     ]
     eligible_combined = [
-        item for item in combined if (item.get("height") or 0) <= max_height
+        item for item in combined
+        if max_height is None or (item.get("height") or 0) <= max_height
     ]
     if combined:
         selected = max(eligible_combined or combined, key=_format_rank)

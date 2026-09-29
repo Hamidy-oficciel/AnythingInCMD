@@ -23,7 +23,33 @@ class ExtractTests(unittest.TestCase):
         self.assertEqual(payload["duration"], 12.5)
         self.assertEqual(payload["fps"], 30)
         extract_streams.assert_called_once_with(
-            "https://youtu.be/abcdefghijk", max_height=480
+            "https://youtu.be/abcdefghijk", max_height=720
+        )
+
+    @patch("youtubecmd.extract.stream_payload", return_value={"title": "test"})
+    def test_video_quality_option_selects_source_resolution(self, stream_payload):
+        output = StringIO()
+
+        with redirect_stdout(output):
+            result = main([
+                "https://youtu.be/abcdefghijk", "--video-quality", "1080"
+            ])
+
+        self.assertEqual(result, 0)
+        stream_payload.assert_called_once_with(
+            "https://youtu.be/abcdefghijk", max_height=1080
+        )
+
+    @patch("youtubecmd.extract.stream_payload", return_value={"title": "test"})
+    def test_best_video_quality_removes_source_resolution_cap(self, stream_payload):
+        with redirect_stdout(StringIO()):
+            result = main([
+                "https://youtu.be/abcdefghijk", "--video-quality", "best"
+            ])
+
+        self.assertEqual(result, 0)
+        stream_payload.assert_called_once_with(
+            "https://youtu.be/abcdefghijk", max_height=None
         )
 
     @patch("youtubecmd.extract.input", return_value="https://youtu.be/abcdefghijk")

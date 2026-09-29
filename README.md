@@ -6,7 +6,7 @@ It uses:
 - Python and `yt-dlp` to extract stream URLs and metadata into a temporary JSON file
 - `renderer.exe`, a C++17 player and terminal renderer
 - FFmpeg for video decoding and FFplay for audio
-- ANSI, half-block grayscale, and ASCII terminal rendering
+- True-color half-block, grayscale half-block, and ASCII terminal rendering
 
 The visual output stays inside the terminal. Audio plays through the normal Windows audio device.
 
@@ -66,7 +66,8 @@ The result is not normal video quality, but it can be surprisingly usable.
 - Aspect-ratio preservation
 - HALF_BLOCK rendering mode
 - ASCII compatibility mode
-- Optional ANSI color mode
+- Full RGB color mode
+- Source video quality selection from 360p to 1080p or best available
 - Pause/resume
 - Seek forward/backward
 - Volume control
@@ -238,6 +239,11 @@ https://www.youtube.com/watch?v=dQw4w9WgXcQ
 
 Then playback should begin.
 
+Before playback, choose the source video resolution: 360p, 480p, 720p, 1080p,
+or the best available. The default is 720p. The renderer starts in full RGB
+color at the highest terminal resolution; resize the terminal while playing
+and the picture adjusts automatically.
+
 ---
 
 ## Controls
@@ -253,8 +259,8 @@ Then playback should begin.
 | `Down Arrow` | Volume down |
 | `R` | Restart video |
 | `F` | Try fullscreen / maximize console |
-| `+` | Raise quality: low, normal, high |
-| `-` | Lower quality: high, normal, low |
+| `+` | Increase terminal render resolution |
+| `-` | Decrease terminal render resolution |
 
 The display refreshes automatically after the terminal is resized.
 The C++ player drops late frames and lowers quality when it repeatedly misses the
@@ -265,7 +271,13 @@ true-color half-block output when launching `renderer.exe` directly.
 
 ## Renderer Modes
 
-### HALF_BLOCK — default, grayscale
+### COLOR — default, full RGB
+
+Uses Unicode half-block characters with independent true-color RGB values for
+the top and bottom pixel in each terminal cell. Each cell represents two
+vertical pixels.
+
+### HALF_BLOCK — grayscale
 
 Uses Unicode half-block characters:
 
@@ -304,17 +316,6 @@ Use ASCII if:
 - you want maximum FPS
 
 ---
-
-### ANSI_COLOR
-
-Uses ANSI true-color output. Start `renderer.exe` with `--mode color` to select it.
-
-This uses full RGB colors and can be slower.
-
-Use it only if:
-- your terminal supports ANSI colors well
-- your PC can handle it
-- playback remains smooth
 
 ---
 
@@ -359,9 +360,11 @@ bin\renderer.exe --selftest
 ffmpeg -f lavfi -i testsrc=size=320x180:rate=30 -vf format=gray -f rawvideo - | bin\renderer.exe --raw 320 180 30
 ```
 
-`YouTubeCMD.bat` uses HALF_BLOCK grayscale and normal quality by default. The
-existing `config.json` is retained for the Python compatibility player; the
-native player uses command-line mode and quality options.
+`YouTubeCMD.bat` starts with full RGB color and high terminal render resolution.
+The `+` and `-` keys adjust render resolution during playback. The source video
+resolution is selected before playback. The existing `config.json` is retained
+for the Python compatibility player; the native player uses command-line mode
+and quality options.
 
 ---
 
