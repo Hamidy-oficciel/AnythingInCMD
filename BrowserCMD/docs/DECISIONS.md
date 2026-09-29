@@ -1,0 +1,13 @@
+- **2026-09-29: Put the runnable GitHub Actions workflow at repository-root `.github/workflows/`.** GitHub does not discover workflows nested under `BrowserCMD/`; this small repository-level exception is required for CI to actually run, while all project code remains self-contained under `BrowserCMD/`.
+# BrowserCMD Decisions
+
+- **2026-09-29: Keep BrowserCMD self-contained.** It may mirror useful patterns from YoutubePlayerCMD, but no runtime imports cross project folders; this preserves independent installation and maintenance.
+- **2026-09-29: Use an injected JavaScript text snapshot based on `Range.getClientRects`.** It can return text, visible rectangles, and computed styles in one bounded browser evaluation and is simpler to validate incrementally than decoding the large encoded-string tables in `DOMSnapshot`. The implementation must cap nodes/text and fall back to pixels for unsupported text.
+- **2026-09-29: Use a 12-byte little-endian IPC header with `BCMD`, version, type, and payload length.** Fixed-width framing permits bounded allocation and strict parser tests in both C++ and Python; exact payload layouts are in `docs/PROTOCOL.md`.
+- **2026-09-29: Python 3.10+ is the initial supported range, tested on 3.10 and 3.13 in CI.** These are the oldest declared version and a currently supported newer runtime, without claiming versions not exercised by CI.
+- **2026-09-29: CI uses Actions pinned to full commit SHAs.** This avoids floating action tags in the supply chain.
+- **2026-09-29: M0 has no runtime Python dependencies.** Add only pinned compatible-range dependencies when a milestone actually needs them; `pytest` is development-only and constrained to `>=8,<9`.
+- **2026-09-29: M0 uses a minimal C++17 greeting renderer.** It creates a testable build/lifecycle boundary without claiming terminal capture or browser rendering before those are implemented.
+- **2026-09-29: Browser launch must use system Edge first, then Chrome, Chromium, and Brave.** Use headless mode, a fresh temporary profile, an OS-assigned loopback CDP port, no insecure browser flags, and guaranteed process/profile cleanup. Windows Job Object enforcement is required before claiming crash-safe Windows cleanup.
+- **2026-09-29: Terminal text rendering uses Unicode cell-width and bidi-aware processing.** Contextual Arabic shaping is not available in ordinary Windows terminal glyph output; runs that cannot be rendered correctly must use the pixel layer, and the limitation will be documented.
+- **2026-09-29: No vendored renderer image library is added until a concrete decoder implementation needs one.** At that point, record the selected library and license in `THIRD_PARTY.md` before use; no third-party runtime assets are required by M0.
