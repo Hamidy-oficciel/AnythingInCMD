@@ -8,7 +8,6 @@ enum class RenderMode {
     HalfBlock,
     Color,
     Pixel,
-    TerminalPixel,
 };
 
 std::string renderFrame(const unsigned char* pixels, int width, int height,

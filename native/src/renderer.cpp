@@ -39,8 +39,7 @@ std::string renderFrame(const unsigned char* pixels, int width, int height,
         (channels != 1 && channels != 3)) {
         throw std::invalid_argument("Invalid frame dimensions or pixel format");
     }
-        if ((mode == RenderMode::Color || mode == RenderMode::Pixel ||
-            mode == RenderMode::TerminalPixel) && channels != 3) {
+    if ((mode == RenderMode::Color || mode == RenderMode::Pixel) && channels != 3) {
         throw std::invalid_argument("Color mode requires RGB frames");
     }
 
@@ -58,7 +57,7 @@ std::string renderFrame(const unsigned char* pixels, int width, int height,
         return output;
     }
 
-    if (mode == RenderMode::Pixel || mode == RenderMode::TerminalPixel) {
+    if (mode == RenderMode::Pixel) {
         for (int row = 0; row < height; ++row) {
             for (int column = 0; column < width; ++column) {
                 const auto offset = (static_cast<size_t>(row) * width + column) * 3;

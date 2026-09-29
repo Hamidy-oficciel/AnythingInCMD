@@ -63,14 +63,6 @@ class NativePlayerTests(unittest.TestCase):
         self.assertIn("48;2;255;0;0m ", output)
         self.assertIn("48;2;0;255;0m ", output)
 
-    def test_raw_terminal_pixel_mode_colors_each_cell(self):
-        output = self.run_raw(
-            bytes((255, 0, 0, 0, 255, 0)), 2, 1, "terminal-pixel"
-        )
-
-        self.assertIn("48;2;255;0;0m ", output)
-        self.assertIn("48;2;0;255;0m ", output)
-
     def test_stream_json_is_parsed_before_media_launch(self):
         with tempfile.TemporaryDirectory() as directory:
             stream_path = Path(directory) / "stream.json"
@@ -91,7 +83,7 @@ class NativePlayerTests(unittest.TestCase):
             environment = os.environ.copy()
             environment["PATH"] = directory
             result = subprocess.run(
-                [str(self.binary), "--stream", str(stream_path), "--mode", "terminal-pixel"],
+                [str(self.binary), "--stream", str(stream_path)],
                 capture_output=True,
                 text=True,
                 env=environment,
