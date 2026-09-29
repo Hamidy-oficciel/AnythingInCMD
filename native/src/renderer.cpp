@@ -39,7 +39,7 @@ std::string renderFrame(const unsigned char* pixels, int width, int height,
         (channels != 1 && channels != 3)) {
         throw std::invalid_argument("Invalid frame dimensions or pixel format");
     }
-    if (mode == RenderMode::Color && channels != 3) {
+    if ((mode == RenderMode::Color || mode == RenderMode::Pixel) && channels != 3) {
         throw std::invalid_argument("Color mode requires RGB frames");
     }
 
@@ -52,6 +52,20 @@ std::string renderFrame(const unsigned char* pixels, int width, int height,
                 const auto offset = (static_cast<size_t>(row) * width + column) * channels;
                 output.push_back(kRamp[luminance(pixels + offset, channels) * 9U / 255U]);
             }
+            if (row + 1 < height) output.push_back('\n');
+        }
+        return output;
+    }
+
+    if (mode == RenderMode::Pixel) {
+        for (int row = 0; row < height; ++row) {
+            for (int column = 0; column < width; ++column) {
+                const auto offset = (static_cast<size_t>(row) * width + column) * 3;
+                appendColor(output, "\x1b[48;2;", pixels[offset],
+                            pixels[offset + 1], pixels[offset + 2]);
+                output.push_back(' ');
+            }
+            output.append("\x1b[0m");
             if (row + 1 < height) output.push_back('\n');
         }
         return output;

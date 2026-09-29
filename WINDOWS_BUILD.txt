@@ -2,8 +2,8 @@ YouTubeCMD - Windows Build and Run Guide
 ========================================
 
 This guide builds the native C++ player and runs YouTubeCMD on Windows 10/11.
-The Python side only extracts YouTube stream information. C++ handles FFmpeg,
-FFplay, frame rendering, keyboard controls, and terminal cleanup.
+The Python side extracts YouTube stream information. C++ handles FFmpeg,
+FFplay, a resizable RGB pixel window, keyboard controls, and cleanup.
 
 1. Requirements
 ---------------
@@ -18,7 +18,7 @@ Required:
 - FFmpeg available in PATH, and its build must include both ffmpeg.exe and
   ffplay.exe.
 - Internet access for yt-dlp stream extraction and Python package installation.
-- Windows Terminal is recommended for ANSI colors and Unicode half-blocks.
+- CMD or Windows Terminal can launch the player; video appears in a separate window.
 
 Git is only needed if you are cloning the project. The project does not require
 OpenCV, NumPy, or other image-processing packages.
@@ -127,13 +127,12 @@ You can also pass a URL:
    YouTubeCMD.bat https://www.youtube.com/watch?v=VIDEO_ID
 
 At launch, choose the source video resolution (360p, 480p, 720p, 1080p, or best
-available). Playback defaults to full RGB color, highest terminal render
-resolution, and a 30 FPS cap. Press + to increase terminal render resolution or
-- to reduce it. Resizing the terminal automatically adjusts the picture. If
-rendering remains late, the player reduces terminal output dimensions and then
-frame rate.
-The color renderer can be started directly after obtaining stream metadata:
-   bin\renderer.exe --stream PATH_TO_STREAM_JSON --mode color --quality high
+available). Playback opens a separate window in full RGB with high render
+resolution and a 30 FPS cap. Press + or - while that window is focused to adjust
+render resolution. Resizing the window automatically adjusts the picture. If
+rendering remains late, the player lowers render resolution and then frame rate.
+The pixel window can be started directly after obtaining stream metadata:
+   bin\renderer.exe --stream PATH_TO_STREAM_JSON --mode pixel --quality high
 
 7. Controls
 -----------
@@ -145,7 +144,7 @@ Right Arrow    Seek forward 5 seconds
 Up Arrow       Volume up
 Down Arrow     Volume down
 R              Restart from the beginning
-F              Try to maximize the console
+F              Maximize or restore the video window
 +              Raise quality: low, normal, high
 -              Lower quality: high, normal, low
 
@@ -186,14 +185,14 @@ FFmpeg, ffplay, and internet access.
 - Add the directory containing ffmpeg.exe and ffplay.exe to PATH.
 - Close and reopen the terminal, then rerun the version checks.
 
-ANSI colors or the half-block character do not display correctly:
+Legacy terminal rendering does not display correctly:
 - Use Windows Terminal and a UTF-8-compatible terminal font.
 - Start with `--mode ascii` if the terminal cannot display Unicode blocks.
 
 Playback is choppy:
 - Press - to lower quality, or use ASCII mode.
-- Reduce the terminal window dimensions.
+- Reduce the video window dimensions.
 - Close CPU-heavy background programs.
-- True-color output requires more terminal work than grayscale.
+- Use `-` to lower render resolution.
 
 End of guide.

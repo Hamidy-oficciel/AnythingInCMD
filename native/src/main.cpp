@@ -33,6 +33,7 @@ bool parseMode(const std::string& text, RenderMode& mode) {
     if (text == "ascii") mode = RenderMode::Ascii;
     else if (text == "halfblock" || text == "half-block") mode = RenderMode::HalfBlock;
     else if (text == "color") mode = RenderMode::Color;
+    else if (text == "pixel") mode = RenderMode::Pixel;
     else return false;
     return true;
 }
@@ -40,13 +41,13 @@ bool parseMode(const std::string& text, RenderMode& mode) {
 void printUsage() {
     std::cerr << "Usage:\n"
               << "  renderer.exe --info\n"
-              << "  renderer.exe --selftest [ascii|halfblock|color]\n"
-              << "  renderer.exe --raw WIDTH HEIGHT FPS [ascii|halfblock|color]\n"
-              << "  renderer.exe --stream stream.json [--mode ascii|halfblock|color] [--quality low|normal|high]\n";
+              << "  renderer.exe --selftest [ascii|halfblock|color|pixel]\n"
+              << "  renderer.exe --raw WIDTH HEIGHT FPS [ascii|halfblock|color|pixel]\n"
+              << "  renderer.exe --stream stream.json [--mode ascii|halfblock|color|pixel] [--quality low|normal|high]\n";
 }
 
 std::vector<unsigned char> makeTestFrame(int width, int height, int phase, RenderMode mode) {
-    const int channels = mode == RenderMode::Color ? 3 : 1;
+    const int channels = mode == RenderMode::Color || mode == RenderMode::Pixel ? 3 : 1;
     std::vector<unsigned char> frame(static_cast<size_t>(width) * height * channels);
     for (int row = 0; row < height; ++row) {
         for (int column = 0; column < width; ++column) {
@@ -71,7 +72,7 @@ int runSelftest(RenderMode mode) {
     const int width = std::max(1, std::min(terminal.columns, 120));
     const int height = std::max(1, std::min((terminal.rows - 2) *
         (mode == RenderMode::Ascii ? 1 : 2), 80));
-    const int channels = mode == RenderMode::Color ? 3 : 1;
+    const int channels = mode == RenderMode::Color || mode == RenderMode::Pixel ? 3 : 1;
     const auto frameDuration = std::chrono::duration<double>(1.0 / kTargetFps);
     auto nextFrame = std::chrono::steady_clock::now();
     int phase = 0;
@@ -107,7 +108,7 @@ int runSelftest(RenderMode mode) {
 }
 
 int runRaw(int width, int height, double fps, RenderMode mode) {
-    const int channels = mode == RenderMode::Color ? 3 : 1;
+    const int channels = mode == RenderMode::Color || mode == RenderMode::Pixel ? 3 : 1;
     const auto frameBytes = static_cast<size_t>(width) * height * channels;
     if (frameBytes > 128U * 1024U * 1024U) {
         std::cerr << "Frame is too large.\n";
@@ -164,7 +165,11 @@ int main(int argc, char** argv) {
         return runRaw(width, height, fps, mode);
     }
     if (argc >= 3 && std::string(argv[1]) == "--stream") {
+    #ifdef _WIN32
+        RenderMode mode = RenderMode::Pixel;
+    #else
         RenderMode mode = RenderMode::Color;
+    #endif
         Quality quality = Quality::High;
         for (int index = 3; index < argc; ++index) {
             const std::string option = argv[index];

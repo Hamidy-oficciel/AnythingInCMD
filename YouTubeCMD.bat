@@ -30,7 +30,7 @@ set "STREAM_FILE=%TEMP%\YouTubeCMD-stream-%RANDOM%-%RANDOM%.json"
 ".venv\Scripts\python.exe" -m youtubecmd.extract %* --video-quality "%VIDEO_QUALITY%" > "%STREAM_FILE%"
 set "EXIT_CODE=%ERRORLEVEL%"
 if not "%EXIT_CODE%"=="0" goto finished
-"bin\renderer.exe" --stream "%STREAM_FILE%" --mode color --quality high
+"bin\renderer.exe" --stream "%STREAM_FILE%" --mode pixel --quality high
 set "EXIT_CODE=%ERRORLEVEL%"
 
 :finished

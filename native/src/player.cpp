@@ -2,6 +2,7 @@
 
 #include "console.hpp"
 #include "media.hpp"
+#include "pixel_window.hpp"
 #include "stream.hpp"
 
 #ifdef _WIN32
@@ -47,6 +48,7 @@ const char* qualityName(Quality quality) {
 const char* modeName(RenderMode mode) {
     if (mode == RenderMode::Ascii) return "ASCII";
     if (mode == RenderMode::Color) return "ANSI_COLOR";
+    if (mode == RenderMode::Pixel) return "RGB_PIXELS";
     return "HALF_BLOCK";
 }
 
@@ -54,9 +56,9 @@ Dimensions renderDimensions(const StreamInfo& stream, const TerminalSize& termin
                            RenderMode mode, Quality quality) {
     const double scale = qualityScale(quality);
     const int maxWidth = std::max(1, static_cast<int>(terminal.columns * scale));
-    const int rows = std::max(1, terminal.rows - 2);
+    const int rows = std::max(1, terminal.rows - (mode == RenderMode::Pixel ? 0 : 2));
     const int maxHeight = std::max(1, static_cast<int>(rows *
-        (mode == RenderMode::Ascii ? 1.0 : 2.0) * scale));
+        ((mode == RenderMode::Ascii || mode == RenderMode::Pixel) ? 1.0 : 2.0) * scale));
     const double cellAspect = mode == RenderMode::Ascii ? 0.5 : 1.0;
     const double targetRatio = (static_cast<double>(stream.width) / stream.height) / cellAspect;
     int width;
@@ -120,21 +122,35 @@ void writeStatus(Console& console, const StreamInfo& stream, const TerminalSize&
                   "\x1b[" + std::to_string(firstRow + 1) + ";1H\x1b[2K" + details);
 }
 
+void updatePixelTitle(PixelWindow& window, const StreamInfo& stream, bool paused,
+                      double position, int volume, Quality quality,
+                      Dimensions dimensions, double measuredFps) {
+    const std::string duration = stream.hasDuration ? clockText(stream.duration) : "--:--";
+    window.setTitle("YouTubeCMD | " + stream.title + " | " +
+        (paused ? "PAUSED " : "PLAYING ") + clockText(position) + "/" + duration +
+        " | " + std::to_string(static_cast<int>(measuredFps)) + " FPS | Vol " +
+        std::to_string(volume) + "% | " + qualityName(quality) + " | " +
+        std::to_string(dimensions.width) + "x" + std::to_string(dimensions.height));
+}
+
 std::string videoFilter(Dimensions dimensions, RenderMode mode, double fps) {
     std::ostringstream filter;
-        filter << "scale=" << dimensions.width << ':' << dimensions.height
-           << ":force_original_aspect_ratio=decrease:flags=fast_bilinear,pad="
-               << dimensions.width << ':' << dimensions.height << ":(ow-iw)/2:(oh-ih)/2:black,fps="
-               << std::fixed << std::setprecision(3) << fps << ",format="
-           << (mode == RenderMode::Color ? "rgb24" : "gray");
+    const char* scaleFlags = mode == RenderMode::Pixel ? "neighbor" : "fast_bilinear";
+    const bool fullColor = mode == RenderMode::Color || mode == RenderMode::Pixel;
+    filter << "scale=" << dimensions.width << ':' << dimensions.height
+           << ":force_original_aspect_ratio=decrease:flags=" << scaleFlags << ",pad="
+           << dimensions.width << ':' << dimensions.height << ":(ow-iw)/2:(oh-ih)/2:black,fps="
+           << std::fixed << std::setprecision(3) << fps << ",format="
+           << (fullColor ? "rgb24" : "gray");
     return filter.str();
 }
 
 std::vector<std::string> videoCommand(const StreamInfo& stream, double position,
                                      Dimensions dimensions, RenderMode mode, double fps) {
+    const bool fullColor = mode == RenderMode::Color || mode == RenderMode::Pixel;
     return {"ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-ss",
         number(position), "-i", stream.videoUrl, "-an", "-vf",
-        videoFilter(dimensions, mode, fps), "-pix_fmt", mode == RenderMode::Color ? "rgb24" : "gray",
+        videoFilter(dimensions, mode, fps), "-pix_fmt", fullColor ? "rgb24" : "gray",
         "-f", "rawvideo", "pipe:1"};
 }
 
@@ -186,10 +202,19 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
         return 1;
     }
 
-    Console console;
+    const bool pixelMode = mode == RenderMode::Pixel;
+    Console console(!pixelMode);
+    PixelWindow pixelWindow;
+    if (pixelMode && !pixelWindow.create(stream.title)) {
+        std::cerr << "Could not create the RGB pixel window. This mode requires Windows.\n";
+        return 1;
+    }
+    auto displaySize = [&]() {
+        return pixelMode ? pixelWindow.size() : console.size();
+    };
     ChildProcess video;
     ChildProcess audio;
-    const int channels = mode == RenderMode::Color ? 3 : 1;
+    const int channels = mode == RenderMode::Color || pixelMode ? 3 : 1;
     double fps = std::max(1.0, std::min(kMaxFps, stream.fps));
     auto frameInterval = std::chrono::duration<double>(1.0 / fps);
     int volume = 80;
@@ -197,7 +222,7 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
     bool fullscreen = false;
     double position = 0.0;
     auto playbackStarted = std::chrono::steady_clock::now();
-    TerminalSize terminal = console.size();
+    TerminalSize terminal = displaySize();
     Dimensions dimensions = renderDimensions(stream, terminal, mode, quality);
     auto resizeCandidate = dimensions;
     auto resizeStarted = std::chrono::steady_clock::now();
@@ -241,8 +266,9 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
         dimensions.height * channels);
     bool running = true;
     while (running) {
-        const Key key = console.pollKey();
-        if (key == Key::Quit || interruptionRequested()) break;
+        const Key key = pixelMode ? pixelWindow.pollKey() : console.pollKey();
+        if (key == Key::Quit || interruptionRequested() ||
+            (pixelMode && pixelWindow.closed())) break;
         const double nowPosition = currentPosition();
         bool restartAll = false;
         bool restartVideo = false;
@@ -283,17 +309,18 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
             }
             if (quality != previousQuality) {
                 position = nowPosition;
-                dimensions = renderDimensions(stream, console.size(), mode, quality);
+                dimensions = renderDimensions(stream, displaySize(), mode, quality);
                 restartVideo = true;
             }
         } else if (key == Key::Fullscreen) {
             fullscreen = !fullscreen;
-            toggleFullscreen(fullscreen);
+            if (pixelMode) pixelWindow.maximize(fullscreen);
+            else toggleFullscreen(fullscreen);
         }
         if (restartAll || restartVideo || restartAudio) {
             if (stream.hasDuration && position >= stream.duration) break;
             if (restartAll || restartVideo) {
-                terminal = console.size();
+                terminal = displaySize();
                 dimensions = renderDimensions(stream, terminal, mode, quality);
                 frame.resize(static_cast<size_t>(dimensions.width) * dimensions.height * channels);
             }
@@ -309,16 +336,21 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
                 if (!startAudio(position)) break;
                 playbackStarted = std::chrono::steady_clock::now();
             }
-            console.clear();
+            if (!pixelMode) console.clear();
         }
         if (paused) {
-            writeStatus(console, stream, console.size(), true, position, volume, mode,
-                        quality, dimensions, measuredFps);
+            if (pixelMode) {
+                updatePixelTitle(pixelWindow, stream, true, position, volume, quality,
+                                 dimensions, measuredFps);
+            } else {
+                writeStatus(console, stream, displaySize(), true, position, volume,
+                            mode, quality, dimensions, measuredFps);
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
 
-        const TerminalSize currentTerminal = console.size();
+        const TerminalSize currentTerminal = displaySize();
         const Dimensions currentDimensions = renderDimensions(stream, currentTerminal, mode, quality);
         if (currentDimensions != dimensions) {
             const auto now = std::chrono::steady_clock::now();
@@ -333,7 +365,7 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
                 if (!startVideo(nowPosition)) break;
                 resizeCandidate = dimensions;
                 nextFrame = std::chrono::steady_clock::now();
-                console.clear();
+                if (!pixelMode) console.clear();
             }
         } else {
             resizeCandidate = dimensions;
@@ -353,21 +385,25 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
         }
         if (stream.hasDuration && nowPosition >= stream.duration) break;
 
-        const std::string rendered = renderFrame(frame.data(), dimensions.width,
-                                                  dimensions.height, channels, mode);
-        writeFrame(console, rendered);
+        if (pixelMode) {
+            pixelWindow.drawFrame(frame.data(), dimensions.width, dimensions.height);
+        } else {
+            const std::string rendered = renderFrame(frame.data(), dimensions.width,
+                                                      dimensions.height, channels, mode);
+            writeFrame(console, rendered);
+        }
         ++renderedFrames;
         const auto afterRender = std::chrono::steady_clock::now();
         if (afterRender - frameStart > frameInterval * 1.2) ++slowFrames;
         else slowFrames = std::max(0, slowFrames - 1);
         if (slowFrames >= 6 && quality != Quality::Low) {
             quality = lowerQuality(quality);
-            dimensions = renderDimensions(stream, console.size(), mode, quality);
+            dimensions = renderDimensions(stream, displaySize(), mode, quality);
             frame.resize(static_cast<size_t>(dimensions.width) * dimensions.height * channels);
             video.stop();
             if (!startVideo(currentPosition())) break;
             slowFrames = 0;
-            console.clear();
+            if (!pixelMode) console.clear();
             nextFrame = std::chrono::steady_clock::now();
             continue;
         } else if (slowFrames >= 6 && fps > 15.0) {
@@ -376,7 +412,7 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
             video.stop();
             if (!startVideo(currentPosition())) break;
             slowFrames = 0;
-            console.clear();
+            if (!pixelMode) console.clear();
             nextFrame = std::chrono::steady_clock::now();
             continue;
         }
@@ -386,8 +422,13 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
             fpsStarted = afterRender;
         }
         if (afterRender >= nextStatus) {
-            writeStatus(console, stream, console.size(), false, currentPosition(),
-                        volume, mode, quality, dimensions, measuredFps);
+            if (pixelMode) {
+                updatePixelTitle(pixelWindow, stream, false, currentPosition(), volume,
+                                 quality, dimensions, measuredFps);
+            } else {
+                writeStatus(console, stream, displaySize(), false, currentPosition(),
+                            volume, mode, quality, dimensions, measuredFps);
+            }
             nextStatus = afterRender + std::chrono::milliseconds(250);
         }
         nextFrame += std::chrono::duration_cast<std::chrono::steady_clock::duration>(frameInterval);
@@ -398,6 +439,7 @@ int runStreamPlayer(const std::string& streamPath, RenderMode mode, Quality qual
     }
     video.stop();
     audio.stop();
-    toggleFullscreen(false);
+    if (pixelMode) pixelWindow.maximize(false);
+    else toggleFullscreen(false);
     return 0;
 }

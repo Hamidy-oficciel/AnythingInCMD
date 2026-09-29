@@ -1,20 +1,22 @@
 # YouTubeCMD
 
-YouTubeCMD is a Windows command-line video player that lets you watch YouTube videos directly inside a CMD-compatible terminal.
+YouTubeCMD is a Windows command-line YouTube player. Launch it from CMD or
+Windows Terminal; video opens in a separate resizable RGB pixel window.
 
 It uses:
 - Python and `yt-dlp` to extract stream URLs and metadata into a temporary JSON file
-- `renderer.exe`, a C++17 player and terminal renderer
+- `renderer.exe`, a C++17 player with a native Windows pixel window
 - FFmpeg for video decoding and FFplay for audio
-- True-color half-block, grayscale half-block, and ASCII terminal rendering
+- One independent RGB color per displayed pixel, plus legacy terminal modes
 
-The visual output stays inside the terminal. Audio plays through the normal Windows audio device.
+Audio plays through the normal Windows audio device. The terminal remains available for
+launching the app; the video window handles display, resizing, and playback keys.
 
 ---
 
 ## What YouTubeCMD Does
 
-YouTubeCMD turns a terminal window into a very basic YouTube player.
+YouTubeCMD launches a resizable video window from a command-line terminal.
 
 You run:
 
@@ -33,47 +35,43 @@ YouTubeCMD then:
 2. Extracts playable streams using `yt-dlp`.
 3. Starts audio playback.
 4. Decodes video frames with FFmpeg.
-5. Renders frames inside the terminal using characters.
+5. Displays decoded RGB frames in a native Windows window.
 6. Keeps playback paced to the source FPS.
-7. Restores the terminal when you quit.
+7. Closes the video window cleanly when you quit.
 
 ---
 
 ## Important Limitation
 
-A terminal cannot display real video pixels like a graphical player.
-
-YouTubeCMD renders the closest practical representation using:
-- ASCII characters
-- Unicode blocks
-- ANSI colors
-- half-block characters
-
-The result is not normal video quality, but it can be surprisingly usable.
+Text terminals cannot draw eight independently colored subpixels inside a text
+cell. The Windows launcher therefore uses GDI to display each decoded RGB pixel
+directly, without character glyphs. The older ASCII and half-block modes remain
+available when running the renderer manually.
 
 ---
 
 ## Features
 
-- Play YouTube videos inside CMD / Windows Terminal
+- Launch playback from CMD / Windows Terminal
+- Resizable native video window with independent RGB pixels
 - Supports normal YouTube watch URLs
 - Supports `youtu.be` short URLs
 - Supports URLs with extra parameters
 - Automatic stream extraction
 - No manual stream URL input
 - Audio playback through Windows
-- Terminal-size adaptation
+- Automatic video rescaling when the window is resized
 - Aspect-ratio preservation
 - HALF_BLOCK rendering mode
 - ASCII compatibility mode
-- Full RGB color mode
+- Full RGB color per displayed pixel
 - Source video quality selection from 360p to 1080p or best available
 - Pause/resume
 - Seek forward/backward
 - Volume control
 - Restart
 - Quality adjustment
-- Clean terminal restoration
+- Keyboard playback controls while the video window is focused
 - Friendly error messages
 
 ---
@@ -240,9 +238,9 @@ https://www.youtube.com/watch?v=dQw4w9WgXcQ
 Then playback should begin.
 
 Before playback, choose the source video resolution: 360p, 480p, 720p, 1080p,
-or the best available. The default is 720p. The renderer starts in full RGB
-color at the highest terminal resolution; resize the terminal while playing
-and the picture adjusts automatically.
+or the best available. The default is 720p. Playback opens in a separate
+window with full RGB color and high render resolution. Resize that window while
+playing and the picture adjusts automatically.
 
 ---
 
@@ -258,24 +256,23 @@ and the picture adjusts automatically.
 | `Up Arrow` | Volume up |
 | `Down Arrow` | Volume down |
 | `R` | Restart video |
-| `F` | Try fullscreen / maximize console |
-| `+` | Increase terminal render resolution |
-| `-` | Decrease terminal render resolution |
+| `F` | Maximize / restore the video window |
+| `+` | Increase render resolution |
+| `-` | Decrease render resolution |
 
-The display refreshes automatically after the terminal is resized.
-The C++ player drops late frames and lowers quality when it repeatedly misses the
-30 FPS frame budget. Use `--mode ascii` for grayscale ASCII or `--mode color` for
-true-color half-block output when launching `renderer.exe` directly.
+The display refreshes automatically after the video window is resized. The C++
+player drops late frames and lowers render resolution when it repeatedly misses
+the 30 FPS frame budget. Use `--mode ascii`, `--mode halfblock`, or `--mode color`
+for legacy terminal output when launching `renderer.exe` directly.
 
 ---
 
 ## Renderer Modes
 
-### COLOR — default, full RGB
+### PIXEL — Windows default, full RGB
 
-Uses Unicode half-block characters with independent true-color RGB values for
-the top and bottom pixel in each terminal cell. Each cell represents two
-vertical pixels.
+Uses a native resizable graphics window. Every displayed pixel has its own RGB
+color; no text glyphs or terminal color approximations are used.
 
 ### HALF_BLOCK — grayscale
 
@@ -323,10 +320,9 @@ Use ASCII if:
 
 For the best experience:
 
-1. Use Windows Terminal instead of old legacy CMD.
-2. Full-color HALF_BLOCK playback can use substantial CPU.
-3. Press `-` to lower output dimensions if playback becomes slow.
-4. Close heavy background applications.
+1. Press `-` to lower render resolution if playback becomes slow.
+2. Reduce the video window size.
+3. Close heavy background applications.
 
 ---
 
@@ -335,8 +331,8 @@ For the best experience:
 For weaker machines:
 
 ```text
-Renderer: ASCII or HALF_BLOCK grayscale
-Terminal size: moderate
+Renderer: ASCII or HALF_BLOCK grayscale for legacy terminal output
+Video window size: moderate
 Quality: low or normal
 FPS target: 30
 ```
@@ -344,7 +340,7 @@ FPS target: 30
 If playback is stuttering:
 - press `-` to lower quality
 - switch to ASCII mode
-- reduce terminal size
+- reduce video window size
 - avoid true-color mode
 
 ---
@@ -360,7 +356,7 @@ bin\renderer.exe --selftest
 ffmpeg -f lavfi -i testsrc=size=320x180:rate=30 -vf format=gray -f rawvideo - | bin\renderer.exe --raw 320 180 30
 ```
 
-`YouTubeCMD.bat` starts with full RGB color and high terminal render resolution.
+`YouTubeCMD.bat` starts a separate RGB pixel window at high render resolution.
 The `+` and `-` keys adjust render resolution during playback. The source video
 resolution is selected before playback. The existing `config.json` is retained
 for the Python compatibility player; the native player uses command-line mode

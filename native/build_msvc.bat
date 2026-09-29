@@ -22,7 +22,7 @@ if errorlevel 1 (
 		exit /b 1
 	)
 )
-cl /nologo /O2 /W4 /std:c++17 /EHsc /MT src\main.cpp src\console.cpp src\renderer.cpp src\stream.cpp src\media.cpp src\player.cpp /Fo..\bin\ /Fe:..\bin\renderer.exe user32.lib
+cl /nologo /O2 /W4 /std:c++17 /EHsc /MT src\main.cpp src\console.cpp src\renderer.cpp src\stream.cpp src\media.cpp src\pixel_window.cpp src\player.cpp /Fo..\bin\ /Fe:..\bin\renderer.exe user32.lib gdi32.lib
 set "BUILD_RESULT=%ERRORLEVEL%"
 popd
 exit /b %BUILD_RESULT%
