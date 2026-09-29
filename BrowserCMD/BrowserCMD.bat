@@ -28,7 +28,6 @@ if errorlevel 1 goto failed
 set "PYTHONPATH=%CD%\src"
 ".venv\Scripts\python.exe" -m browsercmd.cli %*
 set "EXIT_CODE=%ERRORLEVEL%"
-".venv\Scripts\python.exe" -c "print('\033[0m\033[?25h\033[?1000l\033[?1006l')"
 popd
 exit /b %EXIT_CODE%
 
