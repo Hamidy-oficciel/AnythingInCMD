@@ -143,7 +143,7 @@ bool PixelWindow::create(const std::string& title) {
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
     windowClass.lpfnWndProc = windowProcedure;
     windowClass.hInstance = instance;
-    windowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    windowClass.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
     windowClass.lpszClassName = kWindowClass;
     if (RegisterClassExW(&windowClass) == 0 &&
         GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
