@@ -5,13 +5,12 @@ import pytest
 from browsercmd.security import UrlError
 from browsercmd.cdp import CDPError
 from browsercmd.terminal import (
+    MAX_RENDER_LINES,
     MAX_PAGE_LINKS,
     TerminalBrowserError,
     format_page,
-    list_links,
     page_payload,
     resolve_user_input,
-    run_terminal,
     search_url,
 )
 
@@ -63,12 +62,6 @@ def test_page_formatter_wraps_readable_text_and_preserves_paragraphs():
     assert "one two three four\n\nend" in rendered
 
 
-def test_link_list_is_numbered_and_empty_state_is_clear():
-    page = {"links": [{"text": "Example", "href": "https://example.org"}]}
-    assert "1. Example" in list_links(page)
-    assert list_links({"links": []}) == "No links found on this page."
-
-
 def test_navigation_waits_for_document_before_reading_text():
     from browsercmd.terminal import TerminalBrowser
 
@@ -110,41 +103,6 @@ def test_navigation_waits_for_document_before_reading_text():
     asyncio.run(scenario())
 
 
-def test_terminal_loop_searches_lists_links_follows_and_quits(monkeypatch):
-    class FakeBrowser:
-        def __init__(self, timeout):
-            self.snapshot = {"title": "Start", "url": "about:blank", "text": "", "links": []}
-            self.visited = []
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_args):
-            return None
-
-        async def navigate(self, url):
-            self.visited.append(url)
-            self.snapshot = {
-                "title": "Results", "url": url, "text": "Search results\nFirst result",
-                "links": [{"text": "First result", "href": "https://example.org/"}],
-            }
-            return self.snapshot
-
-        async def follow_link(self, number):
-            assert number == 1
-            self.snapshot = {
-                "title": "Destination", "url": "https://example.org/", "text": "Page body", "links": [],
-            }
-            return self.snapshot
-
-    monkeypatch.setattr("browsercmd.terminal.TerminalBrowser", FakeBrowser)
-    commands = iter(("cats", ":links", ":go 1", ":quit"))
-    output = []
-    result = asyncio.run(
-        run_terminal(input_fn=lambda _prompt: next(commands), output_fn=output.append)
-    )
-    assert result == 0
-    assert any("First result" in line for line in output)
-    assert any("1. First result" in line for line in output)
-    assert any("Destination" in line for line in output)
-    assert output[-1] == "BrowserCMD closed."
+def test_page_formatter_bounds_rendered_lines():
+    page = {"title": "Long", "url": "https://example.org", "text": "\n".join(["line"] * 1000)}
+    assert len(format_page(page).splitlines()) <= MAX_RENDER_LINES + 1

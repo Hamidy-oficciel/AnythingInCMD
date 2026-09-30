@@ -2,7 +2,7 @@
 
 ## Runtime
 
-M1 uses `websockets` (`>=13,<16`) for the asynchronous Chrome DevTools Protocol connection. It is distributed under the BSD 3-Clause license. No browser binary is bundled.
+M1 uses `websockets` (`>=13,<16`) for the asynchronous Chrome DevTools Protocol connection and `prompt-toolkit` (`>=3.0.48,<4`) for the cross-platform full-screen terminal UI and mouse input. Both are distributed under the BSD 3-Clause license. No browser binary is bundled.
 
 ## Development
 

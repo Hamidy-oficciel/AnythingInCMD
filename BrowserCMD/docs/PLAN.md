@@ -63,10 +63,12 @@ A milestone is not complete until its build and relevant tests pass and its docs
 
 ## Current status
 
-M0 is complete for the POSIX build-and-unit-test target. M1 includes URL policy,
-browser discovery/lifecycle, runtime CDP schema checks, diagnostic capture, and
-a text-first terminal session with DuckDuckGo search, page text, links,
-navigation, and scrolling. The suite has been run on Ubuntu with Python 3.14.2.
-No supported browser is installed in this workspace, so real browser navigation,
-search-result use, and Windows behavior are NOT VERIFIED; M1 acceptance remains
-open until those checks run on Windows with the system browser.
+M0 is complete for the POSIX build-and-unit-test target. M1 now includes URL
+policy, browser discovery/lifecycle, runtime CDP schema checks, diagnostic
+capture, and a full-screen mouse-enabled terminal interface with DuckDuckGo
+search, page text, clickable page links, navigation, scroll, in-page find, and
+keyboard shortcuts. Multi-tab browsing and pixel rendering remain later work.
+The suite has been run on Ubuntu with Python 3.14.2. No supported
+browser is installed in this workspace, so real page browsing and Windows
+Terminal/conhost mouse behavior are NOT VERIFIED; M1 acceptance remains open
+until those checks run on Windows with the system browser.

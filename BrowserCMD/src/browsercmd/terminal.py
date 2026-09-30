@@ -6,9 +6,8 @@ import asyncio
 import ipaddress
 import json
 import re
-import shutil
 import textwrap
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import quote_plus, urlsplit
 
 from browsercmd.browser import BrowserSession
@@ -146,16 +145,6 @@ def format_page(snapshot: dict[str, Any], columns: int = 80) -> str:
     return "\n".join(output)
 
 
-def list_links(snapshot: dict[str, Any], limit: int = 30) -> str:
-    results = []
-    for index, link in enumerate(snapshot["links"][:limit], 1):
-        label = link["text"] or link["href"]
-        results.append(f"{index:>2}. {label}\n    {link['href']}")
-    if len(snapshot["links"]) > limit:
-        results.append(f"... {len(snapshot['links']) - limit} more links")
-    return "\n".join(results) if results else "No links found on this page."
-
-
 class TerminalBrowser:
     def __init__(self, timeout: float = 30.0):
         self.timeout = timeout
@@ -262,114 +251,3 @@ class TerminalBrowser:
         await self._evaluate(f"window.scrollBy({{top: {delta}, behavior: 'instant'}})")
         await asyncio.sleep(0.15)
         return await self.refresh()
-
-    def history_page(self, offset: int) -> dict[str, Any]:
-        index = self._history_index + offset
-        if not 0 <= index < len(self._history):
-            raise TerminalBrowserError("No page in that history direction.")
-        return {"url": self._history[index]}
-
-
-def _help_text() -> str:
-    return "\n".join((
-        "Type a URL or search terms, then press Enter.",
-        ":open URL   open a URL    :search WORDS   search DuckDuckGo",
-        ":links      list links    :go NUMBER      follow a listed link",
-        ":back       previous page :forward        next page",
-        ":reload     reload page   :scroll up|down scroll the page",
-        ":find WORDS find text    :help           show this help",
-        ":quit       exit BrowserCMD",
-    ))
-
-
-async def run_terminal(
-    initial_input: str | None = None,
-    *,
-    timeout: float = 30.0,
-    input_fn: Callable[[str], str] = input,
-    output_fn: Callable[[str], None] = print,
-) -> int:
-    output_fn("BrowserCMD | Terminal search and browsing")
-    output_fn("Search: DuckDuckGo | Browser: installed system browser (headless)")
-    output_fn(_help_text())
-    try:
-        async with TerminalBrowser(timeout=timeout) as browser:
-            if initial_input:
-                resolved = resolve_user_input(initial_input)
-                browser.snapshot = await browser.navigate(resolved)
-                output_fn(format_page(browser.snapshot, shutil.get_terminal_size((80, 24)).columns))
-            while True:
-                try:
-                    command = input_fn("BrowserCMD> ").strip()
-                except (EOFError, KeyboardInterrupt):
-                    output_fn("BrowserCMD closed.")
-                    return 0
-                if not command:
-                    continue
-                if command.lower() in {"q", "quit", ":q", ":quit"}:
-                    output_fn("BrowserCMD closed.")
-                    return 0
-                try:
-                    output = await _handle_command(browser, command)
-                    if output:
-                        output_fn(sanitize_terminal_text(output, MAX_PAGE_TEXT))
-                    if browser.snapshot.get("text") and output != "":
-                        if output.startswith("Opened ") or output.startswith("Scrolled ") or output.startswith("Reloaded"):
-                            output_fn(format_page(browser.snapshot, shutil.get_terminal_size((80, 24)).columns))
-                except (UrlError, CDPError, TerminalBrowserError, OSError, ValueError) as error:
-                    output_fn(f"BrowserCMD: {sanitize_terminal_text(str(error), 512)}")
-    except (CDPError, OSError, RuntimeError) as error:
-        output_fn(f"BrowserCMD: {sanitize_terminal_text(str(error), 512)}")
-        return 1
-
-
-async def _handle_command(browser: TerminalBrowser, command: str) -> str:
-    if not command.startswith(":"):
-        url = resolve_user_input(command)
-        browser.snapshot = await browser.navigate(url)
-        return f"Opened {browser.snapshot['url']}"
-    name, _, argument = command[1:].partition(" ")
-    name = name.lower()
-    argument = argument.strip()
-    if name == "help":
-        return _help_text()
-    if name == "open":
-        if not argument:
-            raise UrlError("Usage: :open URL")
-        browser.snapshot = await browser.navigate(normalize_url(argument))
-        return f"Opened {browser.snapshot['url']}"
-    if name == "search":
-        browser.snapshot = await browser.navigate(search_url(argument))
-        return f"Opened {browser.snapshot['url']}"
-    if name == "links":
-        return list_links(browser.snapshot)
-    if name == "go":
-        try:
-            number = int(argument)
-        except ValueError as error:
-            raise TerminalBrowserError("Usage: :go NUMBER") from error
-        browser.snapshot = await browser.follow_link(number)
-        return f"Opened {browser.snapshot['url']}"
-    if name in {"back", "forward"}:
-        offset = -1 if name == "back" else 1
-        browser.snapshot = await browser.go_history(offset)
-        return f"Opened {browser.snapshot['url']}"
-    if name == "reload":
-        browser.snapshot = await browser.reload()
-        return "Reloaded page"
-    if name == "scroll":
-        if argument not in {"up", "down"}:
-            raise TerminalBrowserError("Usage: :scroll up|down")
-        browser.snapshot = await browser.scroll(argument)
-        return f"Scrolled {argument}"
-    if name == "find":
-        if not argument:
-            raise TerminalBrowserError("Usage: :find WORDS")
-        needle = argument.casefold()
-        matches = [
-            f"{index}: {line[:240]}"
-            for index, line in enumerate(browser.snapshot["text"].splitlines(), 1)
-            if needle in line.casefold()
-        ][:20]
-        return "\n".join(matches) if matches else "No matching text on this page."
-    raise TerminalBrowserError("Unknown command. Type :help for commands.")

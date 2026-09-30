@@ -51,7 +51,7 @@ def test_cli_uses_terminal_session_by_default(monkeypatch):
     async def capture_page(*_args):
         raise AssertionError("default CLI path must not run diagnostic capture")
 
-    monkeypatch.setattr("browsercmd.cli.run_terminal", run_terminal)
+    monkeypatch.setattr("browsercmd.cli.run_clickable_terminal", run_terminal)
     monkeypatch.setattr("browsercmd.cli.capture_page", capture_page)
     assert main(["cats", "and", "dogs"]) == 0
     assert observed == {"value": "cats and dogs", "timeout": 30.0}

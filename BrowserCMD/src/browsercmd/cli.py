@@ -13,7 +13,7 @@ from browsercmd.browser import BrowserUnavailable
 from browsercmd.cdp import CDPError
 from browsercmd.security import UrlError, normalize_url, sanitize_terminal_text
 from browsercmd.spike import capture_page
-from browsercmd.terminal import run_terminal
+from browsercmd.ui import run_clickable_terminal
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     user_input = " ".join(args.input).strip() or None
     if not args.capture:
         try:
-            return asyncio.run(run_terminal(user_input, timeout=args.timeout))
+            return asyncio.run(run_clickable_terminal(user_input, timeout=args.timeout))
         except (BrowserUnavailable, CDPError, OSError, RuntimeError) as error:
             print(f"BrowserCMD: {sanitize_terminal_text(str(error))}", file=sys.stderr)
             return 1
