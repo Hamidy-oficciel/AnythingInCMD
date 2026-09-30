@@ -8,6 +8,7 @@
 - **2026-09-29: CI uses Actions pinned to full commit SHAs.** This avoids floating action tags in the supply chain.
 - **2026-09-29: M0 had no runtime Python dependencies.** M1 adds only `websockets>=13,<16` for asyncio CDP; pytest remains development-only and constrained to `>=8,<10`.
 - **2026-09-29: Use websockets' asyncio client for CDP.** It provides bounded WebSocket messages and is a small maintained dependency; constrain it to major versions with the supported asyncio API and record its BSD 3-Clause license.
+- **2026-09-30: Make the terminal the primary UI and DuckDuckGo the default search engine.** The user explicitly wants lightweight search and browsing inside CMD; the installed browser remains headless for page execution, while pixel rendering is deferred.
 - **2026-09-29: Read `/json/protocol` from each launched browser before issuing CDP commands.** Browser versions vary; runtime schema validation is the required source of truth, and missing methods abort capture with an error.
 - **2026-09-29: M0 uses a minimal C++17 greeting renderer.** It creates a testable build/lifecycle boundary without claiming terminal capture or browser rendering before those are implemented.
 - **2026-09-29: Browser launch must use system Edge first, then Chrome, Chromium, and Brave.** Use headless mode, a fresh temporary profile, an OS-assigned loopback CDP port, no insecure browser flags, and guaranteed process/profile cleanup. Windows Job Object enforcement is required before claiming crash-safe Windows cleanup.

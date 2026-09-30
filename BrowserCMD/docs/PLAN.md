@@ -63,11 +63,10 @@ A milestone is not complete until its build and relevant tests pass and its docs
 
 ## Current status
 
-M0 is complete for the POSIX build-and-unit-test target. M1's implementation is
-in progress: URL policy, browser discovery/lifecycle, runtime CDP schema checks,
-bounded screencast and DOM snapshot capture, and diagnostic file output are
-implemented. The full Python suite reports 41 passing tests on Ubuntu with
-Python 3.14.2. No supported browser is installed in this workspace, so real
-CDP operation, screenshots, Wikipedia/JavaScript-heavy captures, and measured
-frame rate are NOT VERIFIED; M1 acceptance is not yet met. Windows behavior
-also remains NOT VERIFIED.
+M0 is complete for the POSIX build-and-unit-test target. M1 includes URL policy,
+browser discovery/lifecycle, runtime CDP schema checks, diagnostic capture, and
+a text-first terminal session with DuckDuckGo search, page text, links,
+navigation, and scrolling. The suite has been run on Ubuntu with Python 3.14.2.
+No supported browser is installed in this workspace, so real browser navigation,
+search-result use, and Windows behavior are NOT VERIFIED; M1 acceptance remains
+open until those checks run on Windows with the system browser.

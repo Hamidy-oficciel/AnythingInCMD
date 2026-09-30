@@ -1,4 +1,4 @@
-"""BrowserCMD command-line entry point for the M1 browser capture spike."""
+"""BrowserCMD's terminal-first search and text browsing command line."""
 
 from __future__ import annotations
 
@@ -13,11 +13,18 @@ from browsercmd.browser import BrowserUnavailable
 from browsercmd.cdp import CDPError
 from browsercmd.security import UrlError, normalize_url, sanitize_terminal_text
 from browsercmd.spike import capture_page
+from browsercmd.terminal import run_terminal
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Capture a page using the installed system browser")
-    parser.add_argument("url", nargs="?", default="about:blank", help="HTTP(S) URL to inspect")
+    parser = argparse.ArgumentParser(description="Search and browse the web from the terminal")
+    parser.add_argument(
+        "input", nargs="*", help="search query or HTTP(S) URL (omit to start at the search prompt)"
+    )
+    parser.add_argument(
+        "--capture", action="store_true",
+        help="save diagnostic PNG, screencast JPEG, and DOM JSON, then exit",
+    )
     parser.add_argument(
         "--output-dir", type=Path, default=Path.cwd() / "artifacts" / "m1",
         help="directory for the PNG, screencast JPEG, and JSON text snapshot",
@@ -27,8 +34,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if not math.isfinite(args.timeout) or not 3 <= args.timeout <= 120:
         parser.error("--timeout must be between 3 and 120 seconds")
+    user_input = " ".join(args.input).strip() or None
+    if not args.capture:
+        try:
+            return asyncio.run(run_terminal(user_input, timeout=args.timeout))
+        except (BrowserUnavailable, CDPError, OSError, RuntimeError) as error:
+            print(f"BrowserCMD: {sanitize_terminal_text(str(error))}", file=sys.stderr)
+            return 1
     try:
-        url = normalize_url(args.url)
+        url = normalize_url(user_input or "about:blank")
         report = asyncio.run(capture_page(url, args.output_dir, args.timeout))
     except (UrlError, BrowserUnavailable, CDPError, OSError, RuntimeError) as error:
         print(f"BrowserCMD: {sanitize_terminal_text(str(error))}", file=sys.stderr)
